@@ -32,49 +32,48 @@ scene.background = new THREE.TextureLoader().load('space.jpg');
 // Load track model
 const loader = new GLTFLoader();
 // Déclaration globale
-let debugMesh = null;
-let terrainBody = null; // si besoin pour le body associé
-let terrainShape = null; // si besoin pour le body associé
-
-loader.load('race_2.glb', (gltf) => {
-  const track = gltf.scene;
-  track.position.set(0, -360, 0);
-
-  track.traverse((child) => {
-    if (child.isMesh) {
-      child.frustumCulled = false;
+function loadTerrain() {
+  return new Promise((resolve, reject) => {
+    loader.load('race_2.glb', (gltf) => {
+      let loadedVertices, loadedIndices;
+      const track = gltf.scene;
+      track.position.set(0, -360, 0);
       
-      // Assurez-vous que la matrice mondiale est à jour
-      child.updateMatrixWorld(true);
-      
-      // Cloner et transformer la géométrie en espace global
-      const clonedGeometry = child.geometry.clone();
-      clonedGeometry.applyMatrix4(child.matrixWorld);
-      
-      // Extraction des données géométriques transformées
-      const vertices = Array.from(clonedGeometry.attributes.position.array);
-      const indices = Array.from(clonedGeometry.index.array);
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          child.frustumCulled = false;
+          child.updateMatrixWorld(true);
 
-      // Création du body physique en utilisant le Trimesh
-      terrainBody = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
-      terrainShape = new CANNON.Trimesh(vertices, indices);
-      terrainBody.addShape(terrainShape);
-      // Ici, comme la géométrie est déjà en espace global, on peut laisser position à zéro
-      terrainBody.position.set(0, -360, 0);
-      world.addBody(terrainBody);
+          const clonedGeometry = child.geometry.clone();
+          clonedGeometry.applyMatrix4(child.matrixWorld);
 
-      // Création du DebugMesh (pour visualiser le collision mesh)
-      debugMesh = new THREE.Mesh(
-        clonedGeometry,
-        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
-      );
-      debugMesh.position.set(0, -360, 0);
-      scene.add(debugMesh);
-    }
+          loadedVertices = Array.from(clonedGeometry.attributes.position.array);
+          loadedIndices = Array.from(clonedGeometry.index.array);
+
+          // Création du body physique
+          const terrainBody = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
+          const terrainShape = new CANNON.Trimesh(loadedVertices, loadedIndices);
+          terrainBody.addShape(terrainShape);
+          terrainBody.position.set(0, -360, 0);
+          world.addBody(terrainBody);
+
+          // Création du DebugMesh
+          const debugMesh = new THREE.Mesh(
+            clonedGeometry,
+            new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+          );
+          debugMesh.position.set(0, -360, 0);
+          scene.add(debugMesh);
+        }
+      });
+      scene.add(track);
+      resolve({ vertices: loadedVertices, indices: loadedIndices });
+    }, undefined, (error) => {
+      reject(error);
+    });
   });
+}
 
-  scene.add(track);
-}, undefined, console.error);
 
 //COLLIDE
 const groundGeo = new THREE.PlaneGeometry(10000, 10000);
@@ -84,16 +83,40 @@ const groundMat = new THREE.MeshBasicMaterial({
   wireframe : true
 });
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-scene.add(groundMesh);
 
+
+// groundBody
 const groundBody = new CANNON.Body({
   //mass: 10,
   shape: new CANNON.Plane(),
   type : CANNON.Body.STATIC,
-  position: new CANNON.Vec3(0, -25, 0),
+  position: new CANNON.Vec3(0, -355, 0),
 });
+
+// Création d'un nouveau shape à partir de vos vertices et indices
+loadTerrain()
+  .then(({ vertices, indices }) => {
+    console.log("Vertices:", vertices);
+    console.log("Indices:", indices);
+
+    const newGroundGeo = new THREE.BufferGeometry();
+    newGroundGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    newGroundGeo.setIndex(indices);
+    newGroundGeo.computeVertexNormals();
+    groundMesh.geometry = newGroundGeo;
+    
+    const newGroundShape = new CANNON.Trimesh(vertices, indices);
+    groundBody.removeShape(groundBody.shapes[0]);  // Retire le premier shape (le plane)
+    groundBody.addShape(newGroundShape);
+  })
+  .catch((error) => {
+    console.error("Erreur lors du chargement:", error);
+  });
+
+//groundBody.quaternion.setFromEuler(0, 0, 0);
+scene.add(groundMesh);
 world.addBody(groundBody);
-groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+
 
 // Ground (green grass beneath track)
 const groundGeometry = new THREE.PlaneGeometry(10000, 10000);
@@ -191,8 +214,8 @@ function animate() {
   world.step(timeStep);
   requestAnimationFrame(animate);
 
-  debugMesh.position.copy(terrainBody.position);
-  debugMesh.quaternion.copy(terrainBody.quaternion);
+  //debugMesh.position.copy(terrainBody.position);
+  //debugMesh.quaternion.copy(terrainBody.quaternion);
 
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
