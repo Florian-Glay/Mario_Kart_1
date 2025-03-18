@@ -31,16 +31,50 @@ scene.background = new THREE.TextureLoader().load('space.jpg');
 
 // Load track model
 const loader = new GLTFLoader();
+// Déclaration globale
+let debugMesh = null;
+let terrainBody = null; // si besoin pour le body associé
+let terrainShape = null; // si besoin pour le body associé
+
 loader.load('race_2.glb', (gltf) => {
   const track = gltf.scene;
-  track.scale.set(1, 1, 1);
   track.position.set(0, -360, 0);
+
   track.traverse((child) => {
-    if (child.isMesh) child.frustumCulled = false;
+    if (child.isMesh) {
+      child.frustumCulled = false;
+      
+      // Assurez-vous que la matrice mondiale est à jour
+      child.updateMatrixWorld(true);
+      
+      // Cloner et transformer la géométrie en espace global
+      const clonedGeometry = child.geometry.clone();
+      clonedGeometry.applyMatrix4(child.matrixWorld);
+      
+      // Extraction des données géométriques transformées
+      const vertices = Array.from(clonedGeometry.attributes.position.array);
+      const indices = Array.from(clonedGeometry.index.array);
+
+      // Création du body physique en utilisant le Trimesh
+      terrainBody = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
+      terrainShape = new CANNON.Trimesh(vertices, indices);
+      terrainBody.addShape(terrainShape);
+      // Ici, comme la géométrie est déjà en espace global, on peut laisser position à zéro
+      terrainBody.position.set(0, -360, 0);
+      world.addBody(terrainBody);
+
+      // Création du DebugMesh (pour visualiser le collision mesh)
+      debugMesh = new THREE.Mesh(
+        clonedGeometry,
+        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+      );
+      debugMesh.position.set(0, -360, 0);
+      scene.add(debugMesh);
+    }
   });
+
   scene.add(track);
 }, undefined, console.error);
-
 
 //COLLIDE
 const groundGeo = new THREE.PlaneGeometry(10000, 10000);
@@ -96,7 +130,7 @@ scene.add(boxMesh);
 const boxBody = new CANNON.Body({
   mass: 200,
   shape: new CANNON.Box(new CANNON.Vec3(8, 3, 8)),
-  position: new CANNON.Vec3(0, 100, 0),
+  position: new CANNON.Vec3(0, 300, 0),
 });
 world.addBody(boxBody);
 
@@ -157,11 +191,14 @@ function animate() {
   world.step(timeStep);
   requestAnimationFrame(animate);
 
-  groundMesh.position.copy(groundBody.position);
-  groundMesh.quaternion.copy(groundBody.quaternion);
+  debugMesh.position.copy(terrainBody.position);
+  debugMesh.quaternion.copy(terrainBody.quaternion);
 
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
+
+  groundMesh.position.copy(groundBody.position);
+  groundMesh.quaternion.copy(groundBody.quaternion);
 
   moveKart();
   moveBody();
