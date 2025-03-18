@@ -31,48 +31,15 @@ scene.background = new THREE.TextureLoader().load('space.jpg');
 
 // Load track model
 const loader = new GLTFLoader();
-// Déclaration globale
-function loadTerrain() {
-  return new Promise((resolve, reject) => {
-    loader.load('race_2.glb', (gltf) => {
-      let loadedVertices, loadedIndices;
-      const track = gltf.scene;
-      track.position.set(0, -360, 0);
-      
-      gltf.scene.traverse((child) => {
-        if (child.isMesh) {
-          child.frustumCulled = false;
-          child.updateMatrixWorld(true);
-
-          const clonedGeometry = child.geometry.clone();
-          clonedGeometry.applyMatrix4(child.matrixWorld);
-
-          loadedVertices = Array.from(clonedGeometry.attributes.position.array);
-          loadedIndices = Array.from(clonedGeometry.index.array);
-
-          // Création du body physique
-          const terrainBody = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC });
-          const terrainShape = new CANNON.Trimesh(loadedVertices, loadedIndices);
-          terrainBody.addShape(terrainShape);
-          terrainBody.position.set(0, -360, 0);
-          world.addBody(terrainBody);
-
-          // Création du DebugMesh
-          const debugMesh = new THREE.Mesh(
-            clonedGeometry,
-            new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
-          );
-          debugMesh.position.set(0, -360, 0);
-          scene.add(debugMesh);
-        }
-      });
-      scene.add(track);
-      resolve({ vertices: loadedVertices, indices: loadedIndices });
-    }, undefined, (error) => {
-      reject(error);
-    });
+loader.load('race_2.glb', (gltf) => {
+  const track = gltf.scene;
+  track.scale.set(1, 1, 1);
+  track.position.set(0, -360, 0);
+  track.traverse((child) => {
+    if (child.isMesh) child.frustumCulled = false;
   });
-}
+  scene.add(track);
+}, undefined, console.error);
 
 
 //COLLIDE
@@ -83,40 +50,16 @@ const groundMat = new THREE.MeshBasicMaterial({
   wireframe : true
 });
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+scene.add(groundMesh);
 
-
-// groundBody
 const groundBody = new CANNON.Body({
   //mass: 10,
   shape: new CANNON.Plane(),
   type : CANNON.Body.STATIC,
-  position: new CANNON.Vec3(0, -355, 0),
+  position: new CANNON.Vec3(0, -25, 0),
 });
-
-// Création d'un nouveau shape à partir de vos vertices et indices
-loadTerrain()
-  .then(({ vertices, indices }) => {
-    console.log("Vertices:", vertices);
-    console.log("Indices:", indices);
-
-    const newGroundGeo = new THREE.BufferGeometry();
-    newGroundGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    newGroundGeo.setIndex(indices);
-    newGroundGeo.computeVertexNormals();
-    groundMesh.geometry = newGroundGeo;
-    
-    const newGroundShape = new CANNON.Trimesh(vertices, indices);
-    groundBody.removeShape(groundBody.shapes[0]);  // Retire le premier shape (le plane)
-    groundBody.addShape(newGroundShape);
-  })
-  .catch((error) => {
-    console.error("Erreur lors du chargement:", error);
-  });
-
-//groundBody.quaternion.setFromEuler(0, 0, 0);
-scene.add(groundMesh);
 world.addBody(groundBody);
-
+groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 
 // Ground (green grass beneath track)
 const groundGeometry = new THREE.PlaneGeometry(10000, 10000);
@@ -153,7 +96,7 @@ scene.add(boxMesh);
 const boxBody = new CANNON.Body({
   mass: 200,
   shape: new CANNON.Box(new CANNON.Vec3(8, 3, 8)),
-  position: new CANNON.Vec3(0, 300, 0),
+  position: new CANNON.Vec3(0, 100, 0),
 });
 world.addBody(boxBody);
 
@@ -214,14 +157,11 @@ function animate() {
   world.step(timeStep);
   requestAnimationFrame(animate);
 
-  //debugMesh.position.copy(terrainBody.position);
-  //debugMesh.quaternion.copy(terrainBody.quaternion);
+  groundMesh.position.copy(groundBody.position);
+  groundMesh.quaternion.copy(groundBody.quaternion);
 
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
-
-  groundMesh.position.copy(groundBody.position);
-  groundMesh.quaternion.copy(groundBody.quaternion);
 
   moveKart();
   moveBody();
