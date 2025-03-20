@@ -38,7 +38,7 @@ loader.load('race_2.glb', (gltf) => {
   track.traverse((child) => {
     if (child.isMesh) child.frustumCulled = false;
   });
-  scene.add(track);
+  //scene.add(track);
 }, undefined, console.error);
 
 
@@ -99,6 +99,23 @@ const boxBody = new CANNON.Body({
   position: new CANNON.Vec3(0, 100, 0),
 });
 world.addBody(boxBody);
+
+// BOX 
+
+const boxGeo_1 = new THREE.BoxGeometry(170, 10, 20);
+const boxMat_1 = new THREE.MeshBasicMaterial({
+   color: 0x00ff00,
+    wireframe: false
+  });
+const boxMesh_1 = new THREE.Mesh(boxGeo_1, boxMat_1);
+scene.add(boxMesh_1);
+
+const boxBody_1 = new CANNON.Body({
+  type : CANNON.Body.STATIC,
+  shape: new CANNON.Box(new CANNON.Vec3(85, 5, 10)),
+  position: new CANNON.Vec3(500, 100, 500),
+});
+world.addBody(boxBody_1);
 
 
 // Controls
@@ -162,6 +179,9 @@ function animate() {
 
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
+
+  boxMesh_1.position.copy(boxBody_1.position);
+  boxMesh_1.quaternion.copy(boxBody_1.quaternion);
 
   moveKart();
   moveBody();
