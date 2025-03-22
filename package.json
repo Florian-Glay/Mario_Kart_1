@@ -1,5 +1,5 @@
 {
-  "name": "three-demo",
+  "name": "a",
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
@@ -7,11 +7,23 @@
     "serve": "vite preview"
   },
   "devDependencies": {
-    "vite": "^2.3.0"
+    "vite": "^2.9.18"
   },
   "dependencies": {
     "@types/three": "^0.174.0",
     "cannon-es": "^0.20.0",
     "three": "^0.128.0"
-  }
+  },
+  "description": "- Watch the [full tutorial](https://youtu.be/Q7AOvWpIVHU) on YouTube\r - [Scrollable Three.js Animation](https://fireship.io/snippets/threejs-scrollbar-animation) Snippet",
+  "main": "a",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Florian-Glay/Mario_Kart_1.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Florian-Glay/Mario_Kart_1/issues"
+  },
+  "homepage": "https://github.com/Florian-Glay/Mario_Kart_1#readme"
 }

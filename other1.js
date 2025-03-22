@@ -295,7 +295,6 @@ function cubeLevelCreator(command) {
     firstCoords.x = x1;
     firstCoords.z = z1;
     cubeCreationStep = 1;
-    console.log("Première saisie enregistrée: x1 = " + x1 + ", z1 = " + z1);
   } else if (cubeCreationStep === 1) {
     // Deuxième saisie : on attend deux nombres pour x₂ et z₂
     if (parts.length < 3) {
@@ -325,11 +324,36 @@ function cubeLevelCreator(command) {
   }
 }
 
+// === Création de cubes du terrain ===
 
-createCube(85, 60,309,-1207.5,-20,1023.5 , true, true);
-createCube(40, 60,40,-2138,-20,-580 , true, true);
-createCube(40, 60,40,-1708,-20,-580 , true, true);
-createCube(40, 60,2505,-1500,-20,-342 , true, true);
+createCube(85, 60,309,-1207.5,-20,1023.5 , true);
+createCube(40, 60,40,-2138,-20,-580 , true);
+createCube(40, 60,40,-1708,-20,-580 , true);
+createCube(40, 60,2505,-1500,-20,-342 , true);
+createCube(80, 60,235,-1550,-20,-1324 , true);
+createCube(80, 60,235,-1550,-20,-938 , true);
+createCube(80, 60,235,-1550,-20,-552 , true);
+createCube(80, 60,235,-1550,-20,-171 , true);
+createCube(80, 60,235,-1550,-20, 215 , true);
+createCube(80, 60,235,-1550,-20, 600 , true);
+createCube(715, 60,40,-1135,-20,895 , true);
+createCube(1650, 60,40,5,-20,700 , true);
+createCube(620, 60,350,1105,-20,775 , true);
+createCube(513, 60,685,-1.5,-20,-1915 , true);
+createCube(2050, 60,40,-195,-20,620 , true);
+createCube(40, 60,190,-802.5,-20,795 , true);
+createCube(80, 60,150,60,-20,1235 , true);
+createCube(80, 60,375,60,-20,1572 , true);
+createCube(465, 60,1624,-1282.5,-20,-782 , true);
+createCube(60, 60,660,-1195,-20,310 , true);
+createCube(880, 60,238,-640,-20,-668 , true);
+createCube(1065, 60,125,267.5,-20,-725 , true);
+createCube(315, 60,118,800,-20,-802.5 , true);
+createCube(510, 60,705,1237,-20,-1167 , true);
+createCube(245, 60,202,875,-20,-915 , true);
+createCube(945, 60,275,1797.5,-20,-205 , true);
+createCube(810, 60,168,923,-20,-152 , true);
+createCube(855, 60,125,253,-20,-16 , true);
 
 
 // === changement de la caméra ===
