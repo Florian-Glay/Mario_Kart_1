@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as CANNON from 'cannon-es';
 
 
+
+
 // Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
