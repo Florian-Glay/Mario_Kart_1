@@ -98,7 +98,7 @@ world.addBody(groundBody);
 // === Chargement de la carte (track) ===
 const loader = new GLTFLoader();
 loader.load(
-  'race_2.glb',
+  '3D_Model/background.glb',
   (gltf) => {
     const track = gltf.scene;
     track.scale.set(1, 1, 1);
@@ -138,7 +138,7 @@ world.addBody(boxBody);
 // === Chargement du modèle de la voiture (kart) ===
 let kart;
 loader.load(
-  'car_1.glb',
+  '3D_Model/car_1.glb',
   (gltf) => {
     kart = gltf.scene;
     kart.scale.set(50, 50, 50);
@@ -154,6 +154,154 @@ loader.load(
   undefined,
   console.error
 );
+
+
+// === Vitesse voiture ===
+
+// Variables globales pour stocker les bounding boxes
+let circuitBB, dirtBB;// Variables globales pour stocker les terrains
+let circuitTerrain, dirtTerrain;
+
+// Lors du chargement du terrain circuit
+loader.load(
+  '3D_Model/road.glb',
+  (gltf) => {
+    circuitTerrain = gltf.scene;
+    circuitTerrain.name = "circuit";
+    circuitTerrain.position.set(0, -360, 0);
+    circuitTerrain.traverse(child => {
+      if (child.isMesh) child.frustumCulled = false;
+    });
+    scene.add(circuitTerrain);
+    // Calcul de la bounding box pour le terrain circuit
+    circuitBB = new THREE.Box3().setFromObject(circuitTerrain);
+    console.log("BoundingBox circuit:", circuitBB);
+  },
+  undefined,
+  console.error
+);
+
+// Lors du chargement du terrain dirt
+loader.load(
+  '3D_Model/dirt.glb',
+  (gltf) => {
+    dirtTerrain = gltf.scene;
+    dirtTerrain.name = "dirt";
+    dirtTerrain.position.set(0, -360, 0);
+    dirtTerrain.traverse(child => {
+      if (child.isMesh) child.frustumCulled = false;
+    });
+    scene.add(dirtTerrain);
+    // Calcul de la bounding box pour le terrain dirt
+    dirtBB = new THREE.Box3().setFromObject(dirtTerrain);
+    console.log("BoundingBox dirt:", dirtBB);
+  },
+  undefined,
+  console.error
+);
+
+
+// --- Variables globales pour stocker les données des terrains via image ---
+let terrainPlanes = {}; // Exemple : { "road": { mesh, boundingBox, imageData, imgWidth, imgHeight }, "dirt": { ... } }
+
+// Fonction qui crée un plan horizontal avec une texture et prépare ses données d'image
+function createTerrainPlane(name, imageUrl, position, scale) {
+  // Créez une géométrie plane aux dimensions souhaitées (scale.width et scale.depth)
+  const geometry = new THREE.PlaneGeometry(scale.width, scale.depth);
+  const texture = new THREE.TextureLoader().load(imageUrl, (tex) => {
+    // Lorsque l'image est chargée, dessinez-la sur un canvas pour récupérer les données
+    const image = tex.image;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+    const imageData = ctx.getImageData(0, 0, image.width, image.height);
+    // Stockez les données dans l'objet global
+    terrainPlanes[name].imageData = imageData;
+    terrainPlanes[name].imgWidth = image.width;
+    terrainPlanes[name].imgHeight = image.height;
+    console.log("Texture", name, "chargée avec dimensions", image.width, image.height);
+  });
+  texture.format = THREE.RGBAFormat;
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const plane = new THREE.Mesh(geometry, material);
+  // Pour un plan horizontal, on le fait pivoter pour qu'il soit parallèle au sol
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set(position.x, position.y, position.z);
+  plane.name = name;
+  scene.add(plane);
+  
+  // Calculer le rectangle (bounding box horizontal) que couvre le plan
+  const bbox = {
+    minX: position.x - scale.width / 2,
+    maxX: position.x + scale.width / 2,
+    minZ: position.z - scale.depth / 2,
+    maxZ: position.z + scale.depth / 2,
+    y: position.y  // valeur constante, car le plan est horizontal
+  };
+  
+  // Enregistrez le plan dans l'objet global
+  terrainPlanes[name] = {
+    mesh: plane,
+    boundingBox: bbox,
+    imageData: null,
+    imgWidth: 0,
+    imgHeight: 0
+  };
+}
+
+// Exemple d'utilisation pour vos terrains
+// Ajustez la position et la taille (scale) pour qu'elles correspondent à la zone de votre terrain.
+// Par exemple, pour le road :
+createTerrainPlane("road", "3D_Model/road.png", { x: 0, y: -20, z: 0 }, { width: 5000, depth: 5000 });
+// Et pour le dirt :
+createTerrainPlane("dirt", "3D_Model/dirt.png", { x: 0, y: -20, z: 0 }, { width: 5000, depth: 5000 });
+
+// Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
+function isCarOnTerrain(terrainName) {
+  const terrain = terrainPlanes[terrainName];
+  if (!terrain || !terrain.imageData) return false;
+  
+  const bbox = terrain.boundingBox;
+  const carPos = boxMesh.position;
+  
+  // Vérifiez que la position du véhicule (x, z) se trouve dans le rectangle du plan
+  if (carPos.x < bbox.minX || carPos.x > bbox.maxX ||
+      carPos.z < bbox.minZ || carPos.z > bbox.maxZ) {
+    return false;
+  }
+  
+  // Convertir la position du véhicule en coordonnées UV (de 0 à 1)
+  const u = (carPos.x - bbox.minX) / (bbox.maxX - bbox.minX);
+  // Attention : selon votre texture, l'axe Z peut être inversé par rapport à l'axe V.
+  // Ici, nous supposons que v = 1 correspond au minZ et v = 0 au maxZ.
+  const v = 1 - (carPos.z - bbox.minZ) / (bbox.maxZ - bbox.minZ);
+  
+  // Convertir les coordonnées UV en coordonnées pixel dans l'image
+  const px = Math.floor(u * terrain.imgWidth);
+  const py = Math.floor(v * terrain.imgHeight);
+  const index = (py * terrain.imgWidth + px) * 4;
+  const alpha = terrain.imageData.data[index + 3]; // Canal alpha
+  
+  // Seuil pour considérer la zone comme opaque (par exemple 128 sur 255)
+  return alpha > 128;
+}
+
+// Fonction qui met à jour la vitesse de la voiture en fonction du terrain sur lequel elle se trouve
+function updateCarSpeed() {
+  let speedMultiplier = 1; // Vitesse normale par défaut
+  if (isCarOnTerrain("road")) {
+    speedMultiplier = 1;
+    console.log("Véhicule sur road");
+  } else if (isCarOnTerrain("dirt")) {
+    speedMultiplier = 0.5;
+    console.log("Véhicule sur dirt");
+  }
+  return speedMultiplier;
+}
+
+
 
 // === Gestion des contrôles clavier (Z, Q, S, D) ===
 const keys = { z: false, s: false, q: false, d: false };
@@ -174,10 +322,10 @@ function updateBoxControl() {
   let movement = new THREE.Vector3(0, 0, 0);
   
   if (keys.z) {
-    movement.add(camDirection.clone().multiplyScalar(speed));
+    movement.add(camDirection.clone().multiplyScalar(speed*updateCarSpeed()));
   }
   if (keys.s) {
-    movement.add(camDirection.clone().multiplyScalar(-speed));
+    movement.add(camDirection.clone().multiplyScalar(-speed*updateCarSpeed()));
   }
   
   // Mise à jour de la vitesse du corps sur les axes X et Z
