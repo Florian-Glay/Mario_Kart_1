@@ -158,6 +158,19 @@ loader.load(
 
 // === Vitesse voiture ===
 
+// Variable globale indiquant le terrain sur lequel se trouve la voiture
+let currentTerrainType = "road"; // par défaut
+
+// À chaque collision, mettre à jour currentTerrainType
+boxBody.addEventListener("collide", (event) => {
+  const otherBody = event.body;
+  if (otherBody.terrainType) {
+    currentTerrainType = otherBody.terrainType;
+    // Vous pouvez afficher dans la console pour tester :
+    console.log("Collision avec terrain:", currentTerrainType);
+  }
+});
+
 // Variables globales pour stocker les bounding boxes
 let circuitBB, dirtBB;// Variables globales pour stocker les terrains
 let circuitTerrain, dirtTerrain;
@@ -224,7 +237,7 @@ function createTerrainPlane(name, imageUrl, position, scale) {
     console.log("Texture", name, "chargée avec dimensions", image.width, image.height);
   });
   texture.format = THREE.RGBAFormat;
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: false, wireframe: false });
   const plane = new THREE.Mesh(geometry, material);
   // Pour un plan horizontal, on le fait pivoter pour qu'il soit parallèle au sol
   plane.rotation.x = -Math.PI / 2;
@@ -251,12 +264,13 @@ function createTerrainPlane(name, imageUrl, position, scale) {
   };
 }
 
+const mult = 0;
 // Exemple d'utilisation pour vos terrains
 // Ajustez la position et la taille (scale) pour qu'elles correspondent à la zone de votre terrain.
 // Par exemple, pour le road :
-createTerrainPlane("road", "3D_Model/road.png", { x: 0, y: -20, z: 0 }, { width: 5000, depth: 5000 });
+createTerrainPlane("road", "3D_Model/road.png", { x: -25, y: -20, z: -225 }, { width: 4600, depth: 4020 });
 // Et pour le dirt :
-createTerrainPlane("dirt", "3D_Model/dirt.png", { x: 0, y: -20, z: 0 }, { width: 5000, depth: 5000 });
+createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -25, y: -20, z: -225 }, { width: 4600, depth: 4020 });
 
 // Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
 function isCarOnTerrain(terrainName) {
