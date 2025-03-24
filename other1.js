@@ -981,27 +981,96 @@ function particulesSelectMenu(){
 
 // === Définition de la liste des plans ===
 const plansList = [
-  { name: "home", color: 0xff0000 },
-  { name: "vitesse", color: 0x00ff00 },
-  { name: "personnage", color: 0x0000ff },
-  { name: "kart", color: 0xffff00 },
-  { name: "course", color: 0xff00ff },
-  { name: "go", color: 0x00ffff }
+  { name: "home", image: "Image/mario_2.png",fitByHeight: true },
+  { name: "vitesse", image: "Image/mario_2.png",fitByHeight: true  },
+  { name: "personnage", image: "Image/mario_2.png",fitByHeight: true  },
+  { name: "kart", image: "Image/mario_2.png",fitByHeight: true  },
+  { name: "course", image: "Image/mario_2.png",fitByHeight: true  },
+  { name: "go", image: "Image/mario_2.png",fitByHeight: true  }
 ];
 
+// Texture loader
+const textureLoader = new THREE.TextureLoader();
+
 let planIndex = 0;
-let selection_var = "";                  // "suivant" ou "précédent"
+let selection_var = "";
 let currentPlan = plansList[planIndex].name;  // plan actuel
 
-
-const planGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight);
+// Pour chaque plan, on charge la texture, on calcule ses dimensions cibles et on crée le mesh
 plansList.forEach((plan, index) => {
-  const material = new THREE.MeshBasicMaterial({ color: plan.color, side: THREE.DoubleSide });
-  const planeMesh = new THREE.Mesh(planGeometry, material);
-  // Chaque plan est positionné sur l'axe X, espacés d'une largeur égale à celle de l'écran.
-  planeMesh.position.set(index * window.innerWidth, 0, 0);
-  scene_select.add(planeMesh);
+  textureLoader.load(plan.image, (texture) => {
+    // Amélioration de la qualité de l'image
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    // Calcul du rapport largeur/hauteur de l'image
+    const aspect = texture.image.width / texture.image.height;
+    let targetWidth, targetHeight;
+
+    // Deux modes de redimensionnement
+    if (plan.fitByHeight) {
+      // La hauteur de l'image sera celle de la fenêtre
+      targetHeight = window.innerHeight;
+      targetWidth = window.innerHeight * aspect;
+    } else {
+      // La largeur de l'image sera celle de la fenêtre
+      targetWidth = window.innerWidth;
+      targetHeight = window.innerWidth / aspect;
+    }
+
+    // Création de la géométrie avec les dimensions calculées
+    const geometry = new THREE.PlaneGeometry(targetWidth, targetHeight);
+
+    // Création du matériau avec transparence gérée (pour le PNG)
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.01,
+      side: THREE.DoubleSide
+    });
+
+    // Création du mesh
+    const planeMesh = new THREE.Mesh(geometry, material);
+    // On stocke dans userData des infos utiles pour le redimensionnement futur
+    planeMesh.userData = {
+      fitByHeight: plan.fitByHeight,
+      aspect: aspect
+    };
+    // Positionnement : chaque plan est centré dans une "cellule" d'une largeur égale à window.innerWidth
+    planeMesh.position.set(index * window.innerWidth, 0, 0);
+
+    scene_select.add(planeMesh);
+  });
 });
+
+// Gestion du redimensionnement de la fenêtre
+window.addEventListener("resize", onWindowResize);
+
+function onWindowResize() {
+  // Mise à jour du renderer et de la caméra (si vous utilisez la même pour scene_select)
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera_select.aspect = window.innerWidth / window.innerHeight;
+  camera_select.updateProjectionMatrix();
+
+  // Mise à jour des géométries des plans en fonction du mode de redimensionnement
+  scene_select.children.forEach((mesh) => {
+    if (mesh.isMesh && mesh.userData && mesh.userData.aspect) {
+      const aspect = mesh.userData.aspect;
+      let newWidth, newHeight;
+      if (mesh.userData.fitByHeight) {
+        newHeight = window.innerHeight;
+        newWidth = window.innerHeight * aspect;
+      } else {
+        newWidth = window.innerWidth;
+        newHeight = window.innerWidth / aspect;
+      }
+      // Dispose de l'ancienne géométrie et crée-en une nouvelle
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
+    }
+  });
+}
 
 // === Variables pour la transition fluide ===
 let isTransitioning = false;
