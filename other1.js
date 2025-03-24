@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "run";
+var statusWolrd = "runsolo";
 
 // Récupération des éléments
 const chatIcon = document.getElementById('chat-icon');
@@ -40,6 +40,7 @@ chatInput.addEventListener('keydown', (event) => {
 // === Scène, caméra, renderer ===
 const scene = new THREE.Scene();
 
+// === Camera 1 ===
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
@@ -48,9 +49,92 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(0, 150, 300);
 
+// === camera 2 ===
+const camera_2 = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000000
+);
+camera_2.position.set(0, 150, 300);
+
+// === camera map ===
+const camera_map = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000000
+);
+// Positionnement de la caméra pour une vue en diagonale depuis le haut
+camera_map.position.set(200, 200, 200);
+// La caméra regarde vers le centre de la scène (ou un point de votre choix)
+camera_map.lookAt(new THREE.Vector3(0, 0, 0));
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+
+
+
+// === SELECT === 
+// --- Création de la scène ---
+const scene_select = new THREE.Scene();
+
+// --- Création d'un arrière-plan en dégradé diagonal ---
+// On crée un canvas qui va servir à générer une texture
+const canvasBG = document.createElement("canvas");
+canvasBG.width = 512;
+canvasBG.height = 512;
+const context = canvasBG.getContext("2d");
+
+// Création du dégradé diagonal
+const gradient = context.createLinearGradient(0, 0, canvasBG.width, canvasBG.height);
+gradient.addColorStop(0, "#0033cc"); // Bleu profond
+gradient.addColorStop(1, "#66ccff"); // Bleu clair
+context.fillStyle = gradient;
+context.fillRect(0, 0, canvasBG.width, canvasBG.height);
+
+// Création d'une texture à partir du canvas et affectation comme arrière-plan de la scène
+const bgTexture = new THREE.CanvasTexture(canvasBG);
+scene_select.background = bgTexture;
+
+// --- Création d'une caméra pour scene_select ---
+const camera_select = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  1,
+  10000
+);
+camera_select.position.set(0, 0, 500); // Ajustez la position selon vos besoins
+camera_select.lookAt(new THREE.Vector3(0, 0, 0));
+
+// --- Création des particules ---
+// Nombre de particules
+const particlesCount = 1000;
+const positions = new Float32Array(particlesCount * 3);
+
+// Définition d'une zone d'apparition pour les particules
+const areaSize = 2000;
+for (let i = 0; i < particlesCount; i++) {
+  // Position aléatoire dans l'espace (x, y, z)
+  positions[i * 3] = Math.random() * areaSize - areaSize / 2;      // x
+  positions[i * 3 + 1] = Math.random() * areaSize - areaSize / 2;  // y
+  positions[i * 3 + 2] = Math.random() * areaSize - areaSize / 2;  // z
+}
+
+const particlesGeometry = new THREE.BufferGeometry();
+particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+const particlesMaterial = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 2,
+  sizeAttenuation: true,
+});
+
+const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+scene_select.add(particles);
+
 
 // Lights
 scene.add(new THREE.AmbientLight(0xffffff, 1));
@@ -62,6 +146,10 @@ pointLight.position.set(5, 500, 5);
 const pointLight2 = new THREE.PointLight(0xffffff, 1);
 pointLight2.position.set(5, 0, 5);
 scene.add(pointLight2);
+
+const pointLight3 = new THREE.PointLight(0xffffff, 1);
+pointLight3.position.set(5, 0, 5);
+scene.add(pointLight3);
 
 // Background
 scene.background = new THREE.TextureLoader().load('smoky-watercolor-cloud-background.jpg');
@@ -150,6 +238,48 @@ loader.load(
       if (child.isMesh) child.frustumCulled = false;
     });
     scene.add(kart);
+  },
+  undefined,
+  console.error
+);
+
+
+// === 2eme VOITURE ===
+const boxGeo_2 = new THREE.BoxGeometry(17, 5, 25);
+const boxMat_2 = new THREE.MeshBasicMaterial({
+  color: 0x00ff00,
+  wireframe: true
+});
+const boxMesh_2 = new THREE.Mesh(boxGeo_2, boxMat_2);
+boxMesh_2.visible = false;
+scene.add(boxMesh_2);
+
+// Corps physique Cannon-es
+const boxBody_2 = new CANNON.Body({
+  mass: 200,
+  shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
+  position: new CANNON.Vec3(-1950, 0, 65)
+});
+boxBody_2.quaternion.setFromEuler(0,-Math.PI, 0);
+boxBody_2.fixedRotation = true;
+boxBody_2.updateMassProperties();
+world.addBody(boxBody_2);
+
+// === Chargement du modèle de la voiture (kart) ===
+let kart_2;
+loader.load(
+  '3D_Model/car_1.glb',
+  (gltf) => {
+    kart_2 = gltf.scene;
+    kart_2.scale.set(50, 50, 50);
+    // Position initiale (sera remplacée dans l'animation)
+    kart_2.position.set(-1950, 0, 65);
+    // Orientation initiale
+    kart_2.rotation.y = Math.PI;
+    kart_2.traverse((child) => {
+      if (child.isMesh) child.frustumCulled = false;
+    });
+    scene.add(kart_2);
   },
   undefined,
   console.error
@@ -268,9 +398,9 @@ const mult = 0;
 // Exemple d'utilisation pour vos terrains
 // Ajustez la position et la taille (scale) pour qu'elles correspondent à la zone de votre terrain.
 // Par exemple, pour le road :
-createTerrainPlane("road", "3D_Model/road.png", { x: -25, y: -20, z: -225 }, { width: 4600, depth: 4020 });
+createTerrainPlane("road", "3D_Model/road.png", { x: -25, y: -40, z: -225 }, { width: 4600, depth: 4020 });
 // Et pour le dirt :
-createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -25, y: -20, z: -225 }, { width: 4600, depth: 4020 });
+createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -25, y: -40, z: -225 }, { width: 4600, depth: 4020 });
 
 // Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
 function isCarOnTerrain(terrainName) {
@@ -318,7 +448,7 @@ function updateCarSpeed() {
 
 
 // === Gestion des contrôles clavier (Z, Q, S, D) ===
-const keys = { z: false, s: false, q: false, d: false };
+const keys = { z: false, s: false, q: false, d: false , o:false, l:false, k:false, m:false};
 window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
 window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
@@ -368,6 +498,53 @@ function updateCamera() {
   const desiredCameraPos = new THREE.Vector3().copy(boxMesh.position).add(worldOffset);
   camera.position.lerp(desiredCameraPos, 0.1);
   camera.lookAt(boxMesh.position);
+}
+
+// === 2eme player control ===
+
+function updateBoxControl_2() {
+  const speed = 200;
+  
+  let camDirection = new THREE.Vector3();
+  camera_2.getWorldDirection(camDirection);
+  camDirection.y = 0;
+  camDirection.normalize();
+  
+  let movement = new THREE.Vector3(0, 0, 0);
+  
+  if (keys.o) {
+    movement.add(camDirection.clone().multiplyScalar(speed));
+  }
+  if (keys.l) {
+    movement.add(camDirection.clone().multiplyScalar(-speed));
+  }
+  
+  // Mise à jour de la vitesse du corps sur les axes X et Z
+  boxBody_2.velocity.x = movement.x;
+  boxBody_2.velocity.z = movement.z;
+  
+  if (keys.o || keys.l || keys.k || keys.m) {
+    boxBody_2.wakeUp();
+  }
+  
+  const rotationSpeed = 1.5;
+  if (keys.k) {
+    boxBody_2.angularVelocity.y = rotationSpeed;
+  } else if (keys.m) {
+    boxBody_2.angularVelocity.y = -rotationSpeed;
+  } else {
+    boxBody_2.angularVelocity.y *= 0.9;
+  }
+}
+
+// === Caméra à la 3e personne ===
+// La caméra suit la boîte contrôlée.
+function updateCamera_2() {
+  const localOffset = new THREE.Vector3(0, 40, -60);
+  const worldOffset = localOffset.clone().applyQuaternion(boxMesh_2.quaternion);
+  const desiredCameraPos = new THREE.Vector3().copy(boxMesh_2.position).add(worldOffset);
+  camera_2.position.lerp(desiredCameraPos, 0.1);
+  camera_2.lookAt(boxMesh_2.position);
 }
 
 // === Création de cube ===
@@ -501,21 +678,21 @@ createCube(80, 60,235,-1550,-20, 600 , true);
 createCube(715, 60,40,-1135,-20,895 , true);
 createCube(1650, 60,40,5,-20,700 , true);
 createCube(620, 60,350,1105,-20,775 , true);
-createCube(513, 60,685,-1.5,-20,-1915 , true);
+createCube(513, 60,685,-1.5,-20,-1915 ,true);
 createCube(2050, 60,40,-195,-20,620 , true);
-createCube(40, 60,190,-802.5,-20,795 , true);
+createCube(40, 60,190,-802.5,-20,795 ,true);
 createCube(80, 60,150,60,-20,1235 , true);
 createCube(80, 60,375,60,-20,1572 , true);
-createCube(465, 60,1624,-1282.5,-20,-782 , true);
-createCube(60, 60,660,-1195,-20,310 , true);
-createCube(880, 60,238,-640,-20,-668 , true);
-createCube(1065, 60,125,267.5,-20,-725 , true);
-createCube(315, 60,118,800,-20,-802.5 , true);
-createCube(510, 60,705,1237,-20,-1167 , true);
-createCube(245, 60,202,875,-20,-915 , true);
-createCube(945, 60,275,1797.5,-20,-205 , true);
-createCube(810, 60,168,923,-20,-152 , true);
-createCube(855, 60,125,253,-20,-16 , true);
+createCube(465, 60,1624,-1282.5,-20,-782, true);
+createCube(60, 60,660,-1195,-20,310 ,true);
+createCube(880, 60,238,-640,-20,-668,true);
+createCube(1065, 60,125,267.5,-20,-725,true);
+createCube(315, 60,118,800,-20,-802.5,true);
+createCube(510, 60,705,1237,-20,-1167,true);
+createCube(245, 60,202,875,-20,-915,true);
+createCube(945, 60,275,1797.5,-20,-205,true);
+createCube(810, 60,168,923,-20,-152,true);
+createCube(855, 60,125,253,-20,-16,true);
 
 
 // === changement de la caméra ===
@@ -651,8 +828,8 @@ createOverlay();
 function commandeInterpretor(){
   let commande = chatValue;
   chatValue = "";
-  if(commande === "run"){
-    statusWolrd = "run";
+  if(commande === "runsolo" || commande === "run"){
+    statusWolrd = "runsolo";
     console.log("Commande:", commande);
   }
   if(commande === "stop"){
@@ -663,6 +840,23 @@ function commandeInterpretor(){
     statusWolrd = "rundev";
     console.log("Commande:", commande);
   }
+  if(commande === "runsplit"){
+    statusWolrd = "runsplit";
+    console.log("Commande:", commande);
+  }
+  if(commande === "runsplit3"){
+    statusWolrd = "runsplit3";
+    console.log("Commande:", commande);
+  }
+  if(commande === "runsplit4"){
+    statusWolrd = "runsplit4";
+    console.log("Commande:", commande);
+  }
+  if(commande === "select"){
+    statusWolrd = "select";
+    console.log("Commande:", commande);
+  }
+  
   // Si la commande commence par "c", on passe par cubeLevelCreator
   if(commande.trim().toLowerCase().startsWith("c")){
     cubeLevelCreator(commande);
@@ -705,6 +899,53 @@ function gameRun(){
 }
 
 // === Fonction du Jeu en Run ===
+function gameRun_2(){
+  // Mise à jour du monde physique
+  world.step(timeStep);
+  updateBoxControl();
+  updateBoxControl_2();
+  // Synchronisation du mesh de la boîte avec son corps physique
+  boxMesh.position.copy(boxBody.position);
+  boxMesh.quaternion.copy(boxBody.quaternion);
+  boxMesh_2.position.copy(boxBody_2.position);
+  boxMesh_2.quaternion.copy(boxBody_2.quaternion);
+  
+  // Le kart suit la boîte (position et rotation)
+  if (kart) {
+    // Vecteur d'offset dans l'espace local de la boîte (ici, -5 unités sur l'axe Z local)
+    const localOffset = new THREE.Vector3(0, 0, -5);
+    localOffset.applyQuaternion(boxMesh.quaternion);
+    kart.position.copy(boxMesh.position).add(localOffset);
+    kart.quaternion.copy(boxMesh.quaternion);
+    pointLight2.position.set(boxMesh.position.x, boxMesh.position.y + 20, boxMesh.position.z);
+  }
+  // Le kart suit la boîte (position et rotation)
+  if (kart_2) {
+    // Vecteur d'offset dans l'espace local de la boîte (ici, -5 unités sur l'axe Z local)
+    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    localOffset_2.applyQuaternion(boxMesh_2.quaternion);
+    kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
+    kart_2.quaternion.copy(boxMesh_2.quaternion);
+    pointLight3.position.set(boxMesh_2.position.x, boxMesh_2.position.y + 20, boxMesh_2.position.z);
+  }
+  
+  // Synchronisation du sol
+  groundMesh.position.copy(groundBody.position);
+  groundMesh.quaternion.copy(groundBody.quaternion);
+
+  // Mise à jour des cubes
+  cubesList.forEach(cube => {
+    cube.mesh.position.copy(cube.body.position);
+    cube.mesh.quaternion.copy(cube.body.quaternion);
+  });
+  
+  // Mise à jour de la caméra
+  updateCamera();
+  updateCamera_2();
+  updateVehicleCoordinates()
+}
+
+// === Fonction du Jeu en Run ===
 function gameRunDev(){
   // Mise à jour du monde physique
   world.step(timeStep);
@@ -720,31 +961,168 @@ function gameRunDev(){
   });
 }
 
+function particulesSelectMenu(){
+  const positionsAttr = particlesGeometry.attributes.position;
+    for (let i = 0; i < positionsAttr.count; i++) {
+      let x = positionsAttr.getX(i);
+      // Incrémentation de la position X pour simuler un mouvement vers la droite
+      x += 0.1;
+      // Si la particule dépasse la limite droite, on la remet à gauche
+      if (x > areaSize / 2) {
+        x = -areaSize / 2;
+      }
+      positionsAttr.setX(i, x);
+    }
+    positionsAttr.needsUpdate = true;
+}
+
 // === Boucle d'animation ===
 const timeStep = 1 / 60;
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   commandeInterpretor();
-  
-  if (statusWolrd === "run") {
+  if(statusWolrd === "select"){
+    particulesSelectMenu();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+    renderer.render(scene_select, camera_select);
+  }
+  else if (statusWolrd === "runsolo") {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     gameRun();
+    renderer.render(scene, camera);
   }
   else if (statusWolrd === "stop") {
-    
+    renderer.render(scene, camera);
   }
   else if (statusWolrd === "rundev") {
+    // Redimensionner le renderer pour couvrir toute la fenêtre
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // Définir le viewport et le scissor pour l'écran entier
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+
+    // Mettre à jour l'aspect de la caméra et recalculer la matrice de projection
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
     gameRunDev();
+    renderer.render(scene, camera);
+  }
+  else if (statusWolrd === "runsplit") {
+
+    camera.aspect = window.innerWidth/2 / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    camera_2.aspect = window.innerWidth/2 / window.innerHeight;
+    camera_2.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setScissorTest(true);
+
+    gameRun_2();
+    // Partie gauche
+    renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.render(scene, camera);
+
+    // Partie droite
+    renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight);
+    renderer.render(scene, camera_2);
+   
+  }
+  else if (statusWolrd === "runsplit3") {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    camera_2.aspect = window.innerWidth / window.innerHeight;
+    camera_2.updateProjectionMatrix();
+
+    // Taille du renderer et activation du scissor test
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setScissorTest(true);
+
+    gameRun_2(); // Run the game
+
+    // ---------------------
+    // Quadrant supérieur gauche : scene1 et camera1
+    renderer.setViewport(0, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(0, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera);
+
+    // ---------------------
+    // Quadrant supérieur droit : scene1 et camera2
+    renderer.setViewport(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera);
+
+    // ---------------------
+    // Quadrant inférieur gauche : scene1 et camera3
+    renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera_2);
+
+    // ---------------------
+    // Quadrant inférieur droit : scene1 et camera4
+    renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera_map);
+   
+  }
+  else if (statusWolrd === "runsplit4") {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    camera_2.aspect = window.innerWidth / window.innerHeight;
+    camera_2.updateProjectionMatrix();
+
+    // Taille du renderer et activation du scissor test
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setScissorTest(true);
+
+    gameRun_2(); // Run the game
+
+    // ---------------------
+    // Quadrant supérieur gauche : scene1 et camera1
+    renderer.setViewport(0, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(0, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera);
+
+    // ---------------------
+    // Quadrant supérieur droit : scene1 et camera2
+    renderer.setViewport(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera);
+
+    // ---------------------
+    // Quadrant inférieur gauche : scene1 et camera3
+    renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera_2);
+
+    // ---------------------
+    // Quadrant inférieur droit : scene1 et camera4
+    renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
+    renderer.render(scene, camera_2);
+   
   }
   
-  
-  renderer.render(scene, camera);
 }
 animate();
 
 // === Ajustement lors du redimensionnement de la fenêtre ===
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  // camera.aspect = window.innerWidth / window.innerHeight;
+  // camera.updateProjectionMatrix();
+  // renderer.setSize(window.innerWidth, window.innerHeight);
 });
