@@ -347,12 +347,43 @@ loader.load(
 // --- Variables globales pour stocker les données des terrains via image ---
 let terrainPlanes = {}; // Exemple : { "road": { mesh, boundingBox, imageData, imgWidth, imgHeight }, "dirt": { ... } }
 
-// Fonction qui crée un plan horizontal avec une texture et prépare ses données d'image
-function createTerrainPlane(name, imageUrl, position, scale) {
-  // Créez une géométrie plane aux dimensions souhaitées (scale.width et scale.depth)
+// Fonction de débogage qui affiche des points sur les zones actives du terrain
+function debugDisplayTerrain(terrainName, debugColor, samplingStep = 5) {
+  const terrain = terrainPlanes[terrainName];
+  if (!terrain || !terrain.imageData) return;
+  const { boundingBox, imageData, imgWidth, imgHeight } = terrain;
+  const positions = [];
+  
+  // Parcourir l'image avec un pas pour limiter le nombre de points
+  for (let i = 0; i < imgWidth; i += samplingStep) {
+    for (let j = 0; j < imgHeight; j += samplingStep) {
+      const index = (j * imgWidth + i) * 4;
+      const alpha = imageData.data[index + 3];
+      if (alpha > 128) {
+        // Calculer les coordonnées UV
+        const u = i / imgWidth;
+        const v = j / imgHeight;
+        // Conversion en coordonnées mondiales (attention à l'inversion de V)
+        const x = boundingBox.minX + u * (boundingBox.maxX - boundingBox.minX);
+        const z = boundingBox.minZ + (1 - v) * (boundingBox.maxZ - boundingBox.minZ);
+        const y = -25; // même hauteur que le plan
+        positions.push(x, y + 0.1, z); // 0.1 pour légèrement surélever les points
+      }
+    }
+  }
+  
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ color: debugColor, size: 1 });
+  const points = new THREE.Points(geom, mat);
+  scene.add(points);
+}
+
+// Modification de la fonction createTerrainPlane pour appeler debugDisplayTerrain une fois la texture chargée
+function createTerrainPlane(name, imageUrl, position, scale, draw) {
+  // Créer la géométrie et charger la texture
   const geometry = new THREE.PlaneGeometry(scale.width, scale.depth);
   const texture = new THREE.TextureLoader().load(imageUrl, (tex) => {
-    // Lorsque l'image est chargée, dessinez-la sur un canvas pour récupérer les données
     const image = tex.image;
     const canvas = document.createElement('canvas');
     canvas.width = image.width;
@@ -360,31 +391,40 @@ function createTerrainPlane(name, imageUrl, position, scale) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(image, 0, 0);
     const imageData = ctx.getImageData(0, 0, image.width, image.height);
-    // Stockez les données dans l'objet global
+    // Stocker les données dans l'objet global
     terrainPlanes[name].imageData = imageData;
     terrainPlanes[name].imgWidth = image.width;
     terrainPlanes[name].imgHeight = image.height;
     console.log("Texture", name, "chargée avec dimensions", image.width, image.height);
+    
+    // Appeler la fonction de débogage pour afficher les zones actives
+    // Vous pouvez définir la couleur différemment pour "road" et "dirt"
+    if (draw) {
+      if(name === "road") {
+        debugDisplayTerrain(name, 0xff0000); // par exemple en rouge pour la route
+      } else if(name === "dirt") {
+        debugDisplayTerrain(name, 0x00ff00); // en vert pour le terrain dirt
+      }
+    }
   });
   texture.format = THREE.RGBAFormat;
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: false, wireframe: false });
   const plane = new THREE.Mesh(geometry, material);
-  // Pour un plan horizontal, on le fait pivoter pour qu'il soit parallèle au sol
   plane.rotation.x = -Math.PI / 2;
   plane.position.set(position.x, position.y, position.z);
   plane.name = name;
   scene.add(plane);
   
-  // Calculer le rectangle (bounding box horizontal) que couvre le plan
+  // Calculer le rectangle que couvre le plan
   const bbox = {
     minX: position.x - scale.width / 2,
     maxX: position.x + scale.width / 2,
     minZ: position.z - scale.depth / 2,
     maxZ: position.z + scale.depth / 2,
-    y: position.y  // valeur constante, car le plan est horizontal
+    y: position.y
   };
   
-  // Enregistrez le plan dans l'objet global
+  // Enregistrer le plan dans l'objet global
   terrainPlanes[name] = {
     mesh: plane,
     boundingBox: bbox,
@@ -398,17 +438,17 @@ const mult = 0;
 // Exemple d'utilisation pour vos terrains
 // Ajustez la position et la taille (scale) pour qu'elles correspondent à la zone de votre terrain.
 // Par exemple, pour le road :
-createTerrainPlane("road", "3D_Model/road.png", { x: -25, y: -40, z: -225 }, { width: 4600, depth: 4020 });
+createTerrainPlane("road", "3D_Model/road.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 },false);
 // Et pour le dirt :
-createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -25, y: -40, z: -225 }, { width: 4600, depth: 4020 });
+createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
 
 // Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
-function isCarOnTerrain(terrainName) {
+function isCarOnTerrain(terrainName, carMesh) {
   const terrain = terrainPlanes[terrainName];
   if (!terrain || !terrain.imageData) return false;
   
   const bbox = terrain.boundingBox;
-  const carPos = boxMesh.position;
+  const carPos = carMesh.position;
   
   // Vérifiez que la position du véhicule (x, z) se trouve dans le rectangle du plan
   if (carPos.x < bbox.minX || carPos.x > bbox.maxX ||
@@ -429,16 +469,16 @@ function isCarOnTerrain(terrainName) {
   const alpha = terrain.imageData.data[index + 3]; // Canal alpha
   
   // Seuil pour considérer la zone comme opaque (par exemple 128 sur 255)
-  return alpha > 128;
+  return alpha > 200;
 }
 
 // Fonction qui met à jour la vitesse de la voiture en fonction du terrain sur lequel elle se trouve
-function updateCarSpeed() {
+function updateCarSpeed(boxCar) {
   let speedMultiplier = 1; // Vitesse normale par défaut
-  if (isCarOnTerrain("road")) {
+  if (isCarOnTerrain("road",boxCar)) {
     speedMultiplier = 1;
-    console.log("Véhicule sur road");
-  } else if (isCarOnTerrain("dirt")) {
+    console.log("Véhicule sur road",boxCar);
+  } else if (isCarOnTerrain("dirt",boxCar)) {
     speedMultiplier = 0.5;
     console.log("Véhicule sur dirt");
   }
@@ -455,96 +495,49 @@ window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // === Mise à jour des contrôles de la boîte ===
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
-function updateBoxControl() {
+function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight) {
   const speed = 200;
   
   let camDirection = new THREE.Vector3();
-  camera.getWorldDirection(camDirection);
+  cam.getWorldDirection(camDirection);
   camDirection.y = 0;
   camDirection.normalize();
   
   let movement = new THREE.Vector3(0, 0, 0);
   
-  if (keys.z) {
-    movement.add(camDirection.clone().multiplyScalar(speed*updateCarSpeed()));
+  if (keyMove) {
+    movement.add(camDirection.clone().multiplyScalar(speed*updateCarSpeed(boxCarMesh)));
   }
-  if (keys.s) {
-    movement.add(camDirection.clone().multiplyScalar(-speed*updateCarSpeed()));
+  if (keyBack) {
+    movement.add(camDirection.clone().multiplyScalar(-speed*updateCarSpeed(boxCarMesh)));
   }
   
   // Mise à jour de la vitesse du corps sur les axes X et Z
-  boxBody.velocity.x = movement.x;
-  boxBody.velocity.z = movement.z;
+  boxCarBody.velocity.x = movement.x;
+  boxCarBody.velocity.z = movement.z;
   
-  if (keys.z || keys.s || keys.q || keys.d) {
-    boxBody.wakeUp();
+  if (keyMove || keyBack || keyLeft || keyRight) {
+    boxCarBody.wakeUp();
   }
   
   const rotationSpeed = 1.5;
-  if (keys.q) {
-    boxBody.angularVelocity.y = rotationSpeed;
-  } else if (keys.d) {
-    boxBody.angularVelocity.y = -rotationSpeed;
+  if (keyLeft) {
+    boxCarBody.angularVelocity.y = rotationSpeed;
+  } else if (keyRight) {
+    boxCarBody.angularVelocity.y = -rotationSpeed;
   } else {
-    boxBody.angularVelocity.y *= 0.9;
+    boxCarBody.angularVelocity.y *= 0.9;
   }
 }
 
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
-function updateCamera() {
+function updateCamera(boxCarMesh, camera) {
   const localOffset = new THREE.Vector3(0, 40, -60);
-  const worldOffset = localOffset.clone().applyQuaternion(boxMesh.quaternion);
-  const desiredCameraPos = new THREE.Vector3().copy(boxMesh.position).add(worldOffset);
+  const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
+  const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
   camera.position.lerp(desiredCameraPos, 0.1);
-  camera.lookAt(boxMesh.position);
-}
-
-// === 2eme player control ===
-
-function updateBoxControl_2() {
-  const speed = 200;
-  
-  let camDirection = new THREE.Vector3();
-  camera_2.getWorldDirection(camDirection);
-  camDirection.y = 0;
-  camDirection.normalize();
-  
-  let movement = new THREE.Vector3(0, 0, 0);
-  
-  if (keys.o) {
-    movement.add(camDirection.clone().multiplyScalar(speed));
-  }
-  if (keys.l) {
-    movement.add(camDirection.clone().multiplyScalar(-speed));
-  }
-  
-  // Mise à jour de la vitesse du corps sur les axes X et Z
-  boxBody_2.velocity.x = movement.x;
-  boxBody_2.velocity.z = movement.z;
-  
-  if (keys.o || keys.l || keys.k || keys.m) {
-    boxBody_2.wakeUp();
-  }
-  
-  const rotationSpeed = 1.5;
-  if (keys.k) {
-    boxBody_2.angularVelocity.y = rotationSpeed;
-  } else if (keys.m) {
-    boxBody_2.angularVelocity.y = -rotationSpeed;
-  } else {
-    boxBody_2.angularVelocity.y *= 0.9;
-  }
-}
-
-// === Caméra à la 3e personne ===
-// La caméra suit la boîte contrôlée.
-function updateCamera_2() {
-  const localOffset = new THREE.Vector3(0, 40, -60);
-  const worldOffset = localOffset.clone().applyQuaternion(boxMesh_2.quaternion);
-  const desiredCameraPos = new THREE.Vector3().copy(boxMesh_2.position).add(worldOffset);
-  camera_2.position.lerp(desiredCameraPos, 0.1);
-  camera_2.lookAt(boxMesh_2.position);
+  camera.lookAt(boxCarMesh.position);
 }
 
 // === Création de cube ===
@@ -868,7 +861,7 @@ function commandeInterpretor(){
 function gameRun(){
   // Mise à jour du monde physique
   world.step(timeStep);
-  updateBoxControl();
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -894,7 +887,7 @@ function gameRun(){
   });
   
   // Mise à jour de la caméra
-  updateCamera();
+  updateCamera(boxMesh, camera);
   updateVehicleCoordinates()
 }
 
@@ -902,8 +895,8 @@ function gameRun(){
 function gameRun_2(){
   // Mise à jour du monde physique
   world.step(timeStep);
-  updateBoxControl();
-  updateBoxControl_2();
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
+  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -940,8 +933,8 @@ function gameRun_2(){
   });
   
   // Mise à jour de la caméra
-  updateCamera();
-  updateCamera_2();
+  updateCamera(boxMesh, camera);
+  updateCamera(boxMesh_2, camera_2);
   updateVehicleCoordinates()
 }
 
@@ -1122,7 +1115,7 @@ animate();
 
 // === Ajustement lors du redimensionnement de la fenêtre ===
 window.addEventListener('resize', () => {
-  // camera.aspect = window.innerWidth / window.innerHeight;
-  // camera.updateProjectionMatrix();
-  // renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
