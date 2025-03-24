@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "runsolo";
+var statusWolrd = "select";
 
 // Récupération des éléments
 const chatIcon = document.getElementById('chat-icon');
@@ -106,16 +106,17 @@ const camera_select = new THREE.PerspectiveCamera(
   1,
   10000
 );
-camera_select.position.set(0, 0, 500); // Ajustez la position selon vos besoins
+camera_select.position.set(0, 0, 359); // Ajustez la position selon vos besoins
 camera_select.lookAt(new THREE.Vector3(0, 0, 0));
 
 // --- Création des particules ---
 // Nombre de particules
-const particlesCount = 1000;
+const particlesCount = 10000;
 const positions = new Float32Array(particlesCount * 3);
 
+
 // Définition d'une zone d'apparition pour les particules
-const areaSize = 2000;
+const areaSize = 20000;
 for (let i = 0; i < particlesCount; i++) {
   // Position aléatoire dans l'espace (x, y, z)
   positions[i * 3] = Math.random() * areaSize - areaSize / 2;      // x
@@ -137,7 +138,6 @@ scene_select.add(particles);
 
 
 // Lights
-scene.add(new THREE.AmbientLight(0xffffff, 1));
 const pointLight = new THREE.PointLight(0xffffff, 0.8);
 pointLight.position.set(5, 500, 5);
 //scene.add(pointLight);
@@ -145,11 +145,18 @@ pointLight.position.set(5, 500, 5);
 
 const pointLight2 = new THREE.PointLight(0xffffff, 1);
 pointLight2.position.set(5, 0, 5);
-scene.add(pointLight2);
+//scene.add(pointLight2);
 
 const pointLight3 = new THREE.PointLight(0xffffff, 1);
 pointLight3.position.set(5, 0, 5);
-scene.add(pointLight3);
+//scene.add(pointLight3);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(0, 300, 0);
+dirLight.castShadow = true;
+// Ajustez le shadow camera pour couvrir la scène si besoin
+scene.add(dirLight);
 
 // Background
 scene.background = new THREE.TextureLoader().load('smoky-watercolor-cloud-background.jpg');
@@ -438,9 +445,9 @@ const mult = 0;
 // Exemple d'utilisation pour vos terrains
 // Ajustez la position et la taille (scale) pour qu'elles correspondent à la zone de votre terrain.
 // Par exemple, pour le road :
-createTerrainPlane("road", "3D_Model/road.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 },false);
+createTerrainPlane("road", "Image/road.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 },false);
 // Et pour le dirt :
-createTerrainPlane("dirt", "3D_Model/dirt.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+createTerrainPlane("dirt", "Image/dirt.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
 
 // Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
 function isCarOnTerrain(terrainName, carMesh) {
@@ -533,7 +540,7 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
 function updateCamera(boxCarMesh, camera) {
-  const localOffset = new THREE.Vector3(0, 40, -60);
+  const localOffset = new THREE.Vector3(0, 32, -48);
   const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
   const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
   camera.position.lerp(desiredCameraPos, 0.1);
@@ -873,7 +880,7 @@ function gameRun(){
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
-    pointLight2.position.set(boxMesh.position.x, boxMesh.position.y + 20, boxMesh.position.z);
+    //pointLight2.position.set(boxMesh.position.x, boxMesh.position.y + 20, boxMesh.position.z);
   }
   
   // Synchronisation du sol
@@ -910,7 +917,7 @@ function gameRun_2(){
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
-    pointLight2.position.set(boxMesh.position.x, boxMesh.position.y + 20, boxMesh.position.z);
+    //pointLight2.position.set(boxMesh.position.x, boxMesh.position.y + 20, boxMesh.position.z);
   }
   // Le kart suit la boîte (position et rotation)
   if (kart_2) {
@@ -919,7 +926,7 @@ function gameRun_2(){
     localOffset_2.applyQuaternion(boxMesh_2.quaternion);
     kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
     kart_2.quaternion.copy(boxMesh_2.quaternion);
-    pointLight3.position.set(boxMesh_2.position.x, boxMesh_2.position.y + 20, boxMesh_2.position.z);
+    //pointLight3.position.set(boxMesh_2.position.x, boxMesh_2.position.y + 20, boxMesh_2.position.z);
   }
   
   // Synchronisation du sol
@@ -954,6 +961,9 @@ function gameRunDev(){
   });
 }
 
+
+// === SELECT FUNCTIONS ===
+
 function particulesSelectMenu(){
   const positionsAttr = particlesGeometry.attributes.position;
     for (let i = 0; i < positionsAttr.count; i++) {
@@ -964,10 +974,91 @@ function particulesSelectMenu(){
       if (x > areaSize / 2) {
         x = -areaSize / 2;
       }
-      positionsAttr.setX(i, x);
+      positionsAttr.setX(i, x) ;
     }
     positionsAttr.needsUpdate = true;
 }
+
+// === Définition de la liste des plans ===
+const plansList = [
+  { name: "home", color: 0xff0000 },
+  { name: "vitesse", color: 0x00ff00 },
+  { name: "personnage", color: 0x0000ff },
+  { name: "kart", color: 0xffff00 },
+  { name: "course", color: 0xff00ff },
+  { name: "go", color: 0x00ffff }
+];
+
+let planIndex = 0;
+let selection_var = "";                  // "suivant" ou "précédent"
+let currentPlan = plansList[planIndex].name;  // plan actuel
+
+
+const planGeometry = new THREE.PlaneGeometry(window.innerWidth, window.innerHeight);
+plansList.forEach((plan, index) => {
+  const material = new THREE.MeshBasicMaterial({ color: plan.color, side: THREE.DoubleSide });
+  const planeMesh = new THREE.Mesh(planGeometry, material);
+  // Chaque plan est positionné sur l'axe X, espacés d'une largeur égale à celle de l'écran.
+  planeMesh.position.set(index * window.innerWidth, 0, 0);
+  scene_select.add(planeMesh);
+});
+
+// === Variables pour la transition fluide ===
+let isTransitioning = false;
+let transitionStart = 0;
+let transitionTarget = 0;
+const transitionDuration = 1.0;  // Durée de la transition en secondes
+let transitionElapsed = 0;
+
+// Fonction d'easing (easeInOutQuad)
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
+}
+
+
+// === Gestion des événements clavier ===
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Space') {
+    if (event.shiftKey) {
+      selection_var = 'précédent';
+      planIndex = (planIndex - 1 + plansList.length) % plansList.length;
+    } else {
+      selection_var = 'suivant';
+      planIndex = (planIndex + 1) % plansList.length;
+    }
+    currentPlan = plansList[planIndex].name;
+    
+    // Préparation de la transition :
+    // La position de départ est la position X actuelle de la caméra.
+    // La position cible est index * window.innerWidth (puisque chaque plan est espacé d'une largeur d'écran).
+    transitionStart = camera_select.position.x;
+    transitionTarget = planIndex * window.innerWidth;
+    transitionElapsed = 0;
+    isTransitioning = true;
+  }
+});
+
+
+// === Fonction d'animation de la caméra pour la sélection de menu ===
+function animateCameraSelect() {
+  // Calcul du delta pour un update indépendant du framerate
+  const delta = clock.getDelta();
+  
+  if (isTransitioning) {
+    transitionElapsed += delta;
+    let progress = transitionElapsed / transitionDuration;
+    if (progress >= 1) {
+      progress = 1;
+      isTransitioning = false;
+    }
+    // Application d'une fonction d'easing pour adoucir le mouvement
+    const easedProgress = easeInOutQuad(progress);
+    // Interpolation linéaire entre la position de départ et la position cible
+    const newX = THREE.MathUtils.lerp(transitionStart, transitionTarget, easedProgress);
+    camera_select.position.x = newX;
+  }
+}
+
 
 // === Boucle d'animation ===
 const timeStep = 1 / 60;
@@ -977,7 +1068,7 @@ function animate() {
   commandeInterpretor();
   if(statusWolrd === "select"){
     particulesSelectMenu();
-
+    animateCameraSelect();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);

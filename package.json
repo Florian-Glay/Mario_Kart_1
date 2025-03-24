@@ -12,7 +12,8 @@
   "dependencies": {
     "@types/three": "^0.174.0",
     "cannon-es": "^0.20.0",
-    "three": "^0.128.0"
+    "three": "^0.128.0",
+    "tween.js": "^16.6.0"
   },
   "description": "- Watch the [full tutorial](https://youtu.be/Q7AOvWpIVHU) on YouTube\r - [Scrollable Three.js Animation](https://fireship.io/snippets/threejs-scrollbar-animation) Snippet",
   "main": "a",
