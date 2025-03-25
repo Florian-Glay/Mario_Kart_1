@@ -8,10 +8,13 @@ import * as CANNON from 'cannon-es';
 let chatValue = "";
 var statusWolrd = "select";
 
+var level_cube = 1;
+
 // Récupération des éléments
 const chatIcon = document.getElementById('chat-icon');
 const chatWindow = document.getElementById('chat-window');
 const chatInput = document.getElementById('chat-input');
+//document.body.removeChild('vehicleCoordinates');
 
 // Au clic sur l'icône, basculer la classe active
 chatIcon.addEventListener('click', () => {
@@ -503,8 +506,10 @@ window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
 function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight) {
-  const speed = 200;
   
+  const speed = 200 * level_cube;
+  const rotationSpeed = 1.5 * level_cube;
+
   let camDirection = new THREE.Vector3();
   cam.getWorldDirection(camDirection);
   camDirection.y = 0;
@@ -527,7 +532,7 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
     boxCarBody.wakeUp();
   }
   
-  const rotationSpeed = 1.5;
+  
   if (keyLeft) {
     boxCarBody.angularVelocity.y = rotationSpeed;
   } else if (keyRight) {
@@ -539,11 +544,11 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
 
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
-function updateCamera(boxCarMesh, camera) {
+function updateCamera(boxCarMesh, camera, rot_speed) {
   const localOffset = new THREE.Vector3(0, 32, -48);
   const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
   const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
-  camera.position.lerp(desiredCameraPos, 0.1);
+  camera.position.lerp(desiredCameraPos, 0.1 * rot_speed);
   camera.lookAt(boxCarMesh.position);
 }
 
@@ -810,6 +815,7 @@ function createOverlay() {
   }
   
   // Fonction pour mettre à jour les coordonnées du véhicule
+  
   function updateVehicleCoordinates() {
     const overlay = document.getElementById('vehicleCoordinates');
     if (overlay) {
@@ -821,7 +827,7 @@ function createOverlay() {
   }
   
 // Créer l'overlay dès le début
-createOverlay();
+//createOverlay();
 
 
 // === Fonction de l'interpréteur de commande ===
@@ -894,8 +900,8 @@ function gameRun(){
   });
   
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera);
-  updateVehicleCoordinates()
+  updateCamera(boxMesh, camera, level_cube);
+  //updateVehicleCoordinates()
 }
 
 // === Fonction du Jeu en Run ===
@@ -940,9 +946,9 @@ function gameRun_2(){
   });
   
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera);
-  updateCamera(boxMesh_2, camera_2);
-  updateVehicleCoordinates()
+  updateCamera(boxMesh, camera, level_cube);
+  updateCamera(boxMesh_2, camera_2, level_cube);
+  //updateVehicleCoordinates()
 }
 
 // === Fonction du Jeu en Run ===
@@ -962,6 +968,127 @@ function gameRunDev(){
 }
 
 
+// === SELECT BUTTONS ===
+
+// === Variables globales minimales ===
+let buttonMesh;
+let normalMaterial, hoverMaterial;
+let raycaster, mouse;
+
+init();
+
+function init() {
+  // 4) Création du raycaster et du vecteur souris
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // 5) Création des deux textures (normal et hover) et de leurs matériaux
+  normalMaterial = new THREE.MeshBasicMaterial({
+    map: createButtonTexture("Single Player", false),
+    transparent: true
+  });
+  hoverMaterial = new THREE.MeshBasicMaterial({
+    map: createButtonTexture("Multiplayer\n2p   3p   4p", true),
+    transparent: true
+  });
+
+  // 6) Création du plane (bouton)
+  //    Largeur = 500, hauteur = 100 => déjà grand.
+  //    Vous pouvez augmenter ces valeurs ou rapprocher la caméra pour le rendre encore plus gros.
+  const geometry = new THREE.PlaneGeometry(500, 100);
+  buttonMesh = new THREE.Mesh(geometry, normalMaterial);
+
+  // On place le bouton au centre de la scène (x=0, y=0, z=0)
+  buttonMesh.position.set(-250, 0, 0);
+  scene_select.add(buttonMesh);
+  camera
+
+  // 7) Écouteurs d’événements
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("resize", onWindowResize_2);
+}
+
+// === Création d'une texture pour le bouton ===
+//  - text : le texte à afficher
+//  - isHover : si true => dégradé jaune, sinon gris
+function createButtonTexture(text, isHover) {
+  const width = 512;
+  const height = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  // Couleurs pour le dégradé
+  let colorStart, colorEnd;
+  if (isHover) {
+    colorStart = "#fff47a";  // jaune clair
+    colorEnd   = "#ffd700";  // jaune plus soutenu
+  } else {
+    colorStart = "#cccccc";  // gris clair
+    colorEnd   = "#999999";  // gris plus foncé
+  }
+
+  // Création d'un dégradé horizontal
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, colorStart);
+  gradient.addColorStop(1, colorEnd);
+
+  // Remplissage du fond
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Dessin du texte
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 48px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // On split le texte s'il y a des retours à la ligne \n
+  const lines = text.split("\n");
+  const lineHeight = 52; // espace entre les lignes
+
+  lines.forEach((line, i) => {
+    ctx.fillText(
+      line,
+      width / 2,
+      height / 2 + (i - (lines.length - 1) / 2) * lineHeight
+    );
+  });
+
+  // Création d'une texture Three.js
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// === Gestion du mouvement de la souris (pour changer l'état du bouton) ===
+function onMouseMove(event) {
+  // Convertit la position de la souris en coordonnées normalisées (-1 à +1)
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // Met à jour le raycaster
+  raycaster.setFromCamera(mouse, camera_select);
+
+  // Vérifie l'intersection avec le bouton
+  const intersects = raycaster.intersectObject(buttonMesh);
+  if (intersects.length > 0) {
+    // Survol => on passe au material hover
+    buttonMesh.material = hoverMaterial;
+  } else {
+    // Pas survol => on repasse au material normal
+    buttonMesh.material = normalMaterial;
+  }
+}
+
+// === Gestion du redimensionnement de la fenêtre ===
+function onWindowResize_2() {
+  camera_select.aspect = window.innerWidth / window.innerHeight;
+  camera_select.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+
 // === SELECT FUNCTIONS ===
 
 function particulesSelectMenu(){
@@ -969,7 +1096,7 @@ function particulesSelectMenu(){
     for (let i = 0; i < positionsAttr.count; i++) {
       let x = positionsAttr.getX(i);
       // Incrémentation de la position X pour simuler un mouvement vers la droite
-      x += 0.1;
+      x += 0.5;
       // Si la particule dépasse la limite droite, on la remet à gauche
       if (x > areaSize / 2) {
         x = -areaSize / 2;
@@ -981,12 +1108,13 @@ function particulesSelectMenu(){
 
 // === Définition de la liste des plans ===
 const plansList = [
-  { name: "home", image: "Image/mario_2.png",fitByHeight: true },
-  { name: "vitesse", image: "Image/mario_2.png",fitByHeight: true  },
-  { name: "personnage", image: "Image/mario_2.png",fitByHeight: true  },
-  { name: "kart", image: "Image/mario_2.png",fitByHeight: true  },
-  { name: "course", image: "Image/mario_2.png",fitByHeight: true  },
-  { name: "go", image: "Image/mario_2.png",fitByHeight: true  }
+  { name: "home", image: "Image/mario_2.png",fitByHeight: true , alignment: "right" }, 
+  { name: "vitesse", image: "Image/mario_2.png",fitByHeight: true  ,alignment: "custom", customOffset: -window.innerWidth / 4 },
+  { name: "personnage", image: "Image/mario_2.png",fitByHeight: true , alignment: "left"  },
+  { name: "kart", image: "Image/mario_2.png",fitByHeight: true , alignment: "center"  },
+  { name: "course", image: "Image/mario_2.png",fitByHeight: true, alignment: "right"   },
+  { name: "go", image: "Image/mario_2.png",fitByHeight: true, alignment: "right"   }
+  // alignement could be "left" or "right" or "center" or "100" "custom"
 ];
 
 // Texture loader
@@ -996,25 +1124,23 @@ let planIndex = 0;
 let selection_var = "";
 let currentPlan = plansList[planIndex].name;  // plan actuel
 
-// Pour chaque plan, on charge la texture, on calcule ses dimensions cibles et on crée le mesh
+// Pour chaque plan, charger la texture, calculer ses dimensions cibles et positionner le mesh
 plansList.forEach((plan, index) => {
   textureLoader.load(plan.image, (texture) => {
-    // Amélioration de la qualité de l'image
+    // Amélioration de la qualité de la texture
     texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     texture.minFilter = THREE.LinearMipMapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
 
-    // Calcul du rapport largeur/hauteur de l'image
+    // Rapport largeur/hauteur de l'image
     const aspect = texture.image.width / texture.image.height;
     let targetWidth, targetHeight;
 
-    // Deux modes de redimensionnement
+    // Calcul en fonction de l'option fitByHeight
     if (plan.fitByHeight) {
-      // La hauteur de l'image sera celle de la fenêtre
       targetHeight = window.innerHeight;
       targetWidth = window.innerHeight * aspect;
     } else {
-      // La largeur de l'image sera celle de la fenêtre
       targetWidth = window.innerWidth;
       targetHeight = window.innerWidth / aspect;
     }
@@ -1022,7 +1148,7 @@ plansList.forEach((plan, index) => {
     // Création de la géométrie avec les dimensions calculées
     const geometry = new THREE.PlaneGeometry(targetWidth, targetHeight);
 
-    // Création du matériau avec transparence gérée (pour le PNG)
+    // Création du matériau avec gestion de la transparence
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
@@ -1030,22 +1156,42 @@ plansList.forEach((plan, index) => {
       side: THREE.DoubleSide
     });
 
-    // Création du mesh
     const planeMesh = new THREE.Mesh(geometry, material);
-    // On stocke dans userData des infos utiles pour le redimensionnement futur
+
+    // On stocke dans userData des infos utiles pour le redimensionnement
     planeMesh.userData = {
       fitByHeight: plan.fitByHeight,
-      aspect: aspect
+      aspect: aspect,
+      alignment: plan.alignment || "center",
+      customOffset: plan.customOffset || 0,
+      index: index
     };
-    // Positionnement : chaque plan est centré dans une "cellule" d'une largeur égale à window.innerWidth
-    planeMesh.position.set(index * window.innerWidth, 0, 0);
 
+    // Calcul de la position sur l'axe X selon l'alignement.
+    // La "cellule" de chaque plan est de largeur window.innerWidth et son centre est à : baseX = index * window.innerWidth
+    const baseX = index * window.innerWidth;
+    let posX = baseX; // par défaut, center
+    switch (planeMesh.userData.alignment) {
+      case "left":
+        // Pour aligner à gauche, on veut que le bord gauche de l'image
+        // (posX - targetWidth/2) coïncide avec le bord gauche de la cellule (baseX - window.innerWidth/2)
+        posX = baseX - window.innerWidth/2 + targetWidth / 2;
+        break;
+      case "right":
+        // Pour aligner à droite, on veut que le bord droit de l'image
+        // (posX + targetWidth/2) coïncide avec le bord droit de la cellule (baseX + window.innerWidth/2)
+        posX = baseX + window.innerWidth / 2 - targetWidth / 2;
+        break;
+      case "custom":
+        // Position personnalisée, le décalage est ajouté par rapport au centre de la cellule
+        posX = baseX + planeMesh.userData.customOffset;
+        break;
+      // "center" ou défaut : pas de modification
+    }
+    planeMesh.position.set(posX, 0, 0);
     scene_select.add(planeMesh);
   });
 });
-
-// Gestion du redimensionnement de la fenêtre
-window.addEventListener("resize", onWindowResize);
 
 function onWindowResize() {
   // Mise à jour du renderer et de la caméra (si vous utilisez la même pour scene_select)
@@ -1072,6 +1218,9 @@ function onWindowResize() {
   });
 }
 
+// Gestion du redimensionnement de la fenêtre
+window.addEventListener("resize", onWindowResize());
+
 // === Variables pour la transition fluide ===
 let isTransitioning = false;
 let transitionStart = 0;
@@ -1083,6 +1232,7 @@ let transitionElapsed = 0;
 function easeInOutQuad(t) {
   return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
 }
+
 
 
 // === Gestion des événements clavier ===
