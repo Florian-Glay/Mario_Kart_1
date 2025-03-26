@@ -7,7 +7,7 @@ import * as CANNON from 'cannon-es';
 // Variable pour stocker la valeur du chat
 let chatValue = "";
 var statusWolrd = "select";
-
+var initialWindowWidth = window.innerWidth;
 var level_cube = 1;
 
 // Récupération des éléments
@@ -967,128 +967,6 @@ function gameRunDev(){
   });
 }
 
-
-// === SELECT BUTTONS ===
-
-// === Variables globales minimales ===
-let buttonMesh;
-let normalMaterial, hoverMaterial;
-let raycaster, mouse;
-
-init();
-
-function init() {
-  // 4) Création du raycaster et du vecteur souris
-  raycaster = new THREE.Raycaster();
-  mouse = new THREE.Vector2();
-
-  // 5) Création des deux textures (normal et hover) et de leurs matériaux
-  normalMaterial = new THREE.MeshBasicMaterial({
-    map: createButtonTexture("Single Player", false),
-    transparent: true
-  });
-  hoverMaterial = new THREE.MeshBasicMaterial({
-    map: createButtonTexture("Multiplayer\n2p   3p   4p", true),
-    transparent: true
-  });
-
-  // 6) Création du plane (bouton)
-  //    Largeur = 500, hauteur = 100 => déjà grand.
-  //    Vous pouvez augmenter ces valeurs ou rapprocher la caméra pour le rendre encore plus gros.
-  const geometry = new THREE.PlaneGeometry(500, 100);
-  buttonMesh = new THREE.Mesh(geometry, normalMaterial);
-
-  // On place le bouton au centre de la scène (x=0, y=0, z=0)
-  buttonMesh.position.set(-250, 0, 0);
-  scene_select.add(buttonMesh);
-  camera
-
-  // 7) Écouteurs d’événements
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("resize", onWindowResize_2);
-}
-
-// === Création d'une texture pour le bouton ===
-//  - text : le texte à afficher
-//  - isHover : si true => dégradé jaune, sinon gris
-function createButtonTexture(text, isHover) {
-  const width = 512;
-  const height = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-
-  // Couleurs pour le dégradé
-  let colorStart, colorEnd;
-  if (isHover) {
-    colorStart = "#fff47a";  // jaune clair
-    colorEnd   = "#ffd700";  // jaune plus soutenu
-  } else {
-    colorStart = "#cccccc";  // gris clair
-    colorEnd   = "#999999";  // gris plus foncé
-  }
-
-  // Création d'un dégradé horizontal
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, colorStart);
-  gradient.addColorStop(1, colorEnd);
-
-  // Remplissage du fond
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  // Dessin du texte
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 48px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  // On split le texte s'il y a des retours à la ligne \n
-  const lines = text.split("\n");
-  const lineHeight = 52; // espace entre les lignes
-
-  lines.forEach((line, i) => {
-    ctx.fillText(
-      line,
-      width / 2,
-      height / 2 + (i - (lines.length - 1) / 2) * lineHeight
-    );
-  });
-
-  // Création d'une texture Three.js
-  const texture = new THREE.CanvasTexture(canvas);
-  return texture;
-}
-
-// === Gestion du mouvement de la souris (pour changer l'état du bouton) ===
-function onMouseMove(event) {
-  // Convertit la position de la souris en coordonnées normalisées (-1 à +1)
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-  // Met à jour le raycaster
-  raycaster.setFromCamera(mouse, camera_select);
-
-  // Vérifie l'intersection avec le bouton
-  const intersects = raycaster.intersectObject(buttonMesh);
-  if (intersects.length > 0) {
-    // Survol => on passe au material hover
-    buttonMesh.material = hoverMaterial;
-  } else {
-    // Pas survol => on repasse au material normal
-    buttonMesh.material = normalMaterial;
-  }
-}
-
-// === Gestion du redimensionnement de la fenêtre ===
-function onWindowResize_2() {
-  camera_select.aspect = window.innerWidth / window.innerHeight;
-  camera_select.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-
 // === SELECT FUNCTIONS ===
 
 function particulesSelectMenu(){
@@ -1106,163 +984,13 @@ function particulesSelectMenu(){
     positionsAttr.needsUpdate = true;
 }
 
-// === Définition de la liste des plans ===
-const plansList = [
-  { name: "home", image: "Image/mario_2.png",fitByHeight: true , alignment: "right" }, 
-  { name: "vitesse", image: "Image/mario_2.png",fitByHeight: true  ,alignment: "custom", customOffset: -window.innerWidth / 4 },
-  { name: "personnage", image: "Image/mario_2.png",fitByHeight: true , alignment: "left"  },
-  { name: "kart", image: "Image/mario_2.png",fitByHeight: true , alignment: "center"  },
-  { name: "course", image: "Image/mario_2.png",fitByHeight: true, alignment: "right"   },
-  { name: "go", image: "Image/mario_2.png",fitByHeight: true, alignment: "right"   }
-  // alignement could be "left" or "right" or "center" or "100" "custom"
-];
 
-// Texture loader
-const textureLoader = new THREE.TextureLoader();
-
-let planIndex = 0;
-let selection_var = "";
-let currentPlan = plansList[planIndex].name;  // plan actuel
-
-// Pour chaque plan, charger la texture, calculer ses dimensions cibles et positionner le mesh
-plansList.forEach((plan, index) => {
-  textureLoader.load(plan.image, (texture) => {
-    // Amélioration de la qualité de la texture
-    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    texture.minFilter = THREE.LinearMipMapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-
-    // Rapport largeur/hauteur de l'image
-    const aspect = texture.image.width / texture.image.height;
-    let targetWidth, targetHeight;
-
-    // Calcul en fonction de l'option fitByHeight
-    if (plan.fitByHeight) {
-      targetHeight = window.innerHeight;
-      targetWidth = window.innerHeight * aspect;
-    } else {
-      targetWidth = window.innerWidth;
-      targetHeight = window.innerWidth / aspect;
-    }
-
-    // Création de la géométrie avec les dimensions calculées
-    const geometry = new THREE.PlaneGeometry(targetWidth, targetHeight);
-
-    // Création du matériau avec gestion de la transparence
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      alphaTest: 0.01,
-      side: THREE.DoubleSide
-    });
-
-    const planeMesh = new THREE.Mesh(geometry, material);
-
-    // On stocke dans userData des infos utiles pour le redimensionnement
-    planeMesh.userData = {
-      fitByHeight: plan.fitByHeight,
-      aspect: aspect,
-      alignment: plan.alignment || "center",
-      customOffset: plan.customOffset || 0,
-      index: index
-    };
-
-    // Calcul de la position sur l'axe X selon l'alignement.
-    // La "cellule" de chaque plan est de largeur window.innerWidth et son centre est à : baseX = index * window.innerWidth
-    const baseX = index * window.innerWidth;
-    let posX = baseX; // par défaut, center
-    switch (planeMesh.userData.alignment) {
-      case "left":
-        // Pour aligner à gauche, on veut que le bord gauche de l'image
-        // (posX - targetWidth/2) coïncide avec le bord gauche de la cellule (baseX - window.innerWidth/2)
-        posX = baseX - window.innerWidth/2 + targetWidth / 2;
-        break;
-      case "right":
-        // Pour aligner à droite, on veut que le bord droit de l'image
-        // (posX + targetWidth/2) coïncide avec le bord droit de la cellule (baseX + window.innerWidth/2)
-        posX = baseX + window.innerWidth / 2 - targetWidth / 2;
-        break;
-      case "custom":
-        // Position personnalisée, le décalage est ajouté par rapport au centre de la cellule
-        posX = baseX + planeMesh.userData.customOffset;
-        break;
-      // "center" ou défaut : pas de modification
-    }
-    planeMesh.position.set(posX, 0, 0);
-    scene_select.add(planeMesh);
-  });
-});
-
-function onWindowResize() {
-  // Mise à jour du renderer et de la caméra (si vous utilisez la même pour scene_select)
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera_select.aspect = window.innerWidth / window.innerHeight;
-  camera_select.updateProjectionMatrix();
-
-  // Mise à jour des géométries des plans en fonction du mode de redimensionnement
-  scene_select.children.forEach((mesh) => {
-    if (mesh.isMesh && mesh.userData && mesh.userData.aspect) {
-      const aspect = mesh.userData.aspect;
-      let newWidth, newHeight;
-      if (mesh.userData.fitByHeight) {
-        newHeight = window.innerHeight;
-        newWidth = window.innerHeight * aspect;
-      } else {
-        newWidth = window.innerWidth;
-        newHeight = window.innerWidth / aspect;
-      }
-      // Dispose de l'ancienne géométrie et crée-en une nouvelle
-      mesh.geometry.dispose();
-      mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
-    }
-  });
-}
-
-// Gestion du redimensionnement de la fenêtre
-window.addEventListener("resize", onWindowResize());
-
-// === Variables pour la transition fluide ===
-let isTransitioning = false;
-let transitionStart = 0;
-let transitionTarget = 0;
-const transitionDuration = 1.0;  // Durée de la transition en secondes
-let transitionElapsed = 0;
-
-// Fonction d'easing (easeInOutQuad)
-function easeInOutQuad(t) {
-  return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
-}
-
-
-
-// === Gestion des événements clavier ===
-document.addEventListener('keydown', (event) => {
-  if (event.code === 'Space') {
-    if (event.shiftKey) {
-      selection_var = 'précédent';
-      planIndex = (planIndex - 1 + plansList.length) % plansList.length;
-    } else {
-      selection_var = 'suivant';
-      planIndex = (planIndex + 1) % plansList.length;
-    }
-    currentPlan = plansList[planIndex].name;
-    
-    // Préparation de la transition :
-    // La position de départ est la position X actuelle de la caméra.
-    // La position cible est index * window.innerWidth (puisque chaque plan est espacé d'une largeur d'écran).
-    transitionStart = camera_select.position.x;
-    transitionTarget = planIndex * window.innerWidth;
-    transitionElapsed = 0;
-    isTransitioning = true;
-  }
-});
-
-
-// === Fonction d'animation de la caméra pour la sélection de menu ===
-function animateCameraSelect() {
-  // Calcul du delta pour un update indépendant du framerate
-  const delta = clock.getDelta();
+function select_menu(){
   
+  // Mise à jour du temps écoulé
+  const delta = clock.getDelta();
+
+  // Transition fluide de la caméra
   if (isTransitioning) {
     transitionElapsed += delta;
     let progress = transitionElapsed / transitionDuration;
@@ -1270,13 +998,415 @@ function animateCameraSelect() {
       progress = 1;
       isTransitioning = false;
     }
-    // Application d'une fonction d'easing pour adoucir le mouvement
     const easedProgress = easeInOutQuad(progress);
-    // Interpolation linéaire entre la position de départ et la position cible
-    const newX = THREE.MathUtils.lerp(transitionStart, transitionTarget, easedProgress);
-    camera_select.position.x = newX;
+
+    // Interpolation linéaire (x, y) entre transitionStart et transitionTarget
+    camera_select.position.x = THREE.MathUtils.lerp(
+      transitionStart.x,
+      transitionTarget.x,
+      easedProgress
+    );
+    camera_select.position.y = THREE.MathUtils.lerp(
+      transitionStart.y,
+      transitionTarget.y,
+      easedProgress
+    );
   }
 }
+
+// ===================================================================================================
+//
+// THE SCENE_SELECT
+//
+//====================================================================================================
+
+/****************************************
+ * 1) Paramètres de base
+ * 
+ * ,
+  {
+    name: "vitesse",
+    image: "Image/mario_2.png",
+    fitByHeight: false,
+    size: 1.5,  // facteur d'échelle pour la taille d'origine
+    x: 1000,
+    y: 0,
+    z: 0,
+    selection: false
+  },
+  {
+    name: "personnage",
+    image: "Image/mario_2.png",
+    fitByHeight: false,
+    size: 0.8,  // un peu plus petit que sa taille d'origine
+    x: -500,
+    y: 200,
+    z: 0,
+    selection: true
+  },
+  {
+    name: "kart",
+    image: "Image/mario_2.png",
+    fitByHeight: true,
+    x: 1200,
+    y: 400,
+    z: 0,
+    selection: false
+  },
+  {
+    name: "course",
+    image: "Image/mario_2.png",
+    fitByHeight: false,
+    // size non défini => 1 par défaut
+    x: 3000,
+    y: -300,
+    z: 0,
+    selection: true
+  },
+  {
+    name: "go",
+    image: "Image/mario_2.png",
+    fitByHeight: false,
+    size: 2.0, // plus grand que l'original
+    x: -2000,
+    y: 500,
+    z: 0,
+    selection: true
+  }
+ ****************************************/
+const nb_menu_select = 5;  // Nombre de positions pour la navigation Espace/Shift+Espace
+
+// Liste des plans (images) à afficher
+const plansList = [
+  {name: "home",image: "Image/mario.png",fitByHeight: true, x: 349,y: 0,z: 0,selection: false},
+  {name: "solo",image: "Image/solo_unselect.png", image_select:"Image/solo_select.png",
+    fitByHeight: false,size: 0.5, x: -300,y: 150,z: 0,selection: true},
+  {name: "multi",image: "Image/multi_unselect.png", image_select:"Image/multi_select.png",
+    fitByHeight: false,size: 0.5, x: -300,y: 0,z: 0,selection: true},
+  {name: "config",image: "Image/config_unselect.png", image_select:"Image/config_select.png",
+    fitByHeight: false,size: 0.5, x: -300,y: -150,z: 0,selection: true},
+
+  {name: "50cc",image: "Image/50cc_unselect.png", image_select:"Image/50cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: 160+window.innerHeight,z: 0,selection: true},
+  {name: "100cc",image: "Image/100cc_unselect.png", image_select:"Image/100cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: 40+window.innerHeight,z: 0,selection: true},
+  {name: "150cc",image: "Image/150cc_unselect.png", image_select:"Image/150cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: -80+window.innerHeight,z: 0,selection: true},
+  {name: "200cc",image: "Image/200cc_unselect.png", image_select:"Image/200cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: -200+window.innerHeight,z: 0,selection: true},
+  
+  {name: "50cc",image: "Image/50cc_unselect.png", image_select:"Image/50cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: 160-window.innerHeight,z: 0,selection: true},
+  {name: "100cc",image: "Image/100cc_unselect.png", image_select:"Image/100cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: 40-window.innerHeight,z: 0,selection: true},
+  {name: "150cc",image: "Image/150cc_unselect.png", image_select:"Image/150cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: -80-window.innerHeight,z: 0,selection: true},
+  {name: "200cc",image: "Image/200cc_unselect.png", image_select:"Image/200cc_select.png",
+    fitByHeight: false,size: 0.5, x: 0,y: -200-window.innerHeight,z: 0,selection: true},
+];
+
+// Indice du plan actuel pour la navigation
+let planIndex = 0;
+let selection_var = "";
+
+// Variables pour la transition fluide de la caméra
+let isTransitioning = false;
+let transitionStart = new THREE.Vector3();
+let transitionTarget = new THREE.Vector3();
+const transitionDuration = 1.0;  // Durée de la transition en secondes
+let transitionElapsed = 0;
+
+// Fonction d'easing (easeInOutQuad)
+function easeInOutQuad(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+/****************************************
+ * 2) Scène, caméra, renderer (exemple)
+ ****************************************/
+
+// Raycaster pour détecter survol/clic
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+/****************************************
+ * 3) Chargement des textures et création des plans
+ ****************************************/
+const textureLoader = new THREE.TextureLoader();
+
+// On parcourt chaque plan pour charger l'image (normal) et éventuellement l'image_select (hover)
+plansList.forEach((plan, index) => {
+  textureLoader.load(plan.image, (textureNormal) => {
+    // Amélioration de la qualité de la texture "normale"
+    textureNormal.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    textureNormal.minFilter = THREE.LinearMipMapLinearFilter;
+    textureNormal.magFilter = THREE.LinearFilter;
+
+    // Dimensions réelles de l'image normale
+    const imgWidth = textureNormal.image.width;
+    const imgHeight = textureNormal.image.height;
+    const aspect = imgWidth / imgHeight;
+
+    // Calcul de la géométrie
+    let finalWidth, finalHeight;
+    if (plan.fitByHeight) {
+      // => L'image prend toute la hauteur de la fenêtre
+      finalHeight = window.innerHeight;
+      finalWidth = finalHeight * aspect;
+    } else {
+      // => L'image garde sa taille d'origine, éventuellement multipliée par "size"
+      const sizeFactor = plan.size !== undefined ? plan.size : 1; // par défaut 1
+      finalWidth = imgWidth * sizeFactor;
+      finalHeight = imgHeight * sizeFactor;
+    }
+
+    // Création de la géométrie
+    const geometry = new THREE.PlaneGeometry(finalWidth, finalHeight);
+
+    // Préparation des matériaux
+    let normalMaterial, hoverMaterial;
+
+    // Si l'image est "sélectionnable" (change au survol)
+    if (plan.selection === true) {
+      // On vérifie si on a une image_select pour l'état "hover"
+      if (plan.image_select) {
+        // On charge l'image de survol
+        const textureHover = textureLoader.load(plan.image_select);
+        textureHover.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        textureHover.minFilter = THREE.LinearMipMapLinearFilter;
+        textureHover.magFilter = THREE.LinearFilter;
+
+        // Matériau hover basé sur l'image_select
+        hoverMaterial = new THREE.MeshBasicMaterial({
+          map: textureHover,
+          transparent: true,
+          alphaTest: 0.01,
+          side: THREE.DoubleSide,
+          color: 0xffffff
+        });
+      } else {
+        // Sinon, on applique une simple variation de couleur pour l'état hover
+        hoverMaterial = new THREE.MeshBasicMaterial({
+          map: textureNormal,
+          transparent: true,
+          alphaTest: 0.01,
+          side: THREE.DoubleSide,
+          color: 0xffffaa // Légèrement jaunâtre
+        });
+      }
+
+      // Matériau normal
+      normalMaterial = new THREE.MeshBasicMaterial({
+        map: textureNormal,
+        transparent: true,
+        alphaTest: 0.01,
+        side: THREE.DoubleSide,
+        color: 0xffffff
+      });
+
+    } else {
+      // Si pas de sélection, un seul matériau "normal"
+      normalMaterial = new THREE.MeshBasicMaterial({
+        map: textureNormal,
+        transparent: true,
+        alphaTest: 0.01,
+        side: THREE.DoubleSide,
+        color: 0xffffff
+      });
+    }
+
+    // Création du mesh avec le matériau normal par défaut
+    const planeMesh = new THREE.Mesh(geometry, normalMaterial);
+
+    // Positionnement du plane
+    planeMesh.position.set(plan.x, plan.y, plan.z || 0);
+
+    // Stocke des infos dans userData (pour resize, survol, clic, etc.)
+    planeMesh.userData = {
+      fitByHeight: plan.fitByHeight,
+      aspect: aspect,
+      index: index,
+      name: plan.name,
+      selection: plan.selection === true,
+      normalMaterial: normalMaterial,
+      hoverMaterial: hoverMaterial || null,
+      originalWidth: imgWidth,
+      originalHeight: imgHeight,
+      size: plan.size !== undefined ? plan.size : 1
+    };
+
+    // Ajout à la scène
+    scene_select.add(planeMesh);
+  });
+});
+
+/****************************************
+ * 4) Redimensionnement de la fenêtre
+ ****************************************/
+
+function onWindowResize(myWindow) {
+  // Mise à jour du renderer et de la caméra
+  renderer.setSize(myWindow.innerWidth, myWindow.innerHeight);
+  camera_select.aspect = myWindow.innerWidth / myWindow.innerHeight;
+  console.log("myWindow.innerHeight",myWindow.innerHeight);
+  camera_select.updateProjectionMatrix();
+
+  // Parcours des objets de la scène
+  scene_select.children.forEach((mesh) => {
+    // Vérification : c'est un mesh avec userData.aspect
+    if (mesh.isMesh && mesh.userData && mesh.userData.aspect !== undefined) {
+      console.log("mesh.userData.aspect",mesh.userData.aspect);
+      if (mesh.userData.fitByHeight) {
+        console.log("mesh.userData.fitByHeight",mesh.userData.fitByHeight);
+        // === fitByHeight = true ===
+        // L'image prend toujours la hauteur de l'écran, on recalcule
+        const aspect = mesh.userData.aspect;
+        const newHeight = myWindow.innerHeight;
+        const newWidth = myWindow.innerHeight * aspect;
+        console.log("newWidth", newWidth , mesh.userData.originalWidth,aspect);
+        console.log("newHeight", newHeight , mesh.userData.originalHeight,aspect);
+
+        mesh.geometry.dispose();
+        mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
+
+      } else {
+        // === fitByHeight = false ===
+        // On agrandit/rétrécit selon la variation de la fenêtre
+        // par rapport à la taille initiale enregistrée
+        console.log("mesh.userData.fitByHeight",mesh.userData.fitByHeight);
+        const ratio = myWindow.innerWidth / initialWindowWidth; // ou un autre calcul si besoin
+        const originalWidth = mesh.userData.originalWidth;
+        const originalHeight = mesh.userData.originalHeight;
+        const sizeFactor = mesh.userData.size !== undefined ? mesh.userData.size : 1;
+
+        const newWidth = originalWidth * sizeFactor * ratio;
+        const newHeight = originalHeight * sizeFactor * ratio;
+
+        mesh.geometry.dispose();
+        mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
+      }
+    }
+  });
+}
+
+/****************************************
+ * 5) Navigation au clavier (Espace / Shift+Espace)
+ ****************************************/
+document.addEventListener("keydown", (event) => {
+  if (event.code === "Space") {
+    if (event.shiftKey) {
+      selection_var = "précédent";
+      planIndex = (planIndex - 1 + nb_menu_select) % nb_menu_select;
+    } else {
+      selection_var = "suivant";
+      planIndex = (planIndex + 1) % nb_menu_select;
+    }
+
+    // Préparation de la transition : la caméra va vers (x, y) du planIndex
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * planIndex, 0, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+  }
+});
+
+/****************************************
+ * 6) Survol de la souris & clic
+ ****************************************/
+document.addEventListener("mousemove", onMouseMove);
+document.addEventListener("click", onMouseClick);
+
+function onMouseMove(event) {
+  // Convertit la position de la souris en coordonnées normalisées (-1 à +1)
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // Raycaster depuis la caméra
+  raycaster.setFromCamera(mouse, camera_select);
+  const intersects = raycaster.intersectObjects(scene_select.children, false);
+
+  // Remettre tous les plans sélectionnables à leur matériau normal
+  scene_select.children.forEach((obj) => {
+    if (obj.isMesh && obj.userData.selection) {
+      obj.material = obj.userData.normalMaterial;
+    }
+  });
+
+  // Si on survole un plan qui a selection=true, on applique le hoverMaterial
+  if (intersects.length > 0) {
+    const topObj = intersects[0].object;
+    if (topObj.userData.selection) {
+      topObj.material = topObj.userData.hoverMaterial;
+    }
+  }
+}
+
+function onMouseClick(event) {
+  // Même logique de raycaster
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera_select);
+  const intersects = raycaster.intersectObjects(scene_select.children, false);
+
+  if (intersects.length > 0) {
+    const topObj = intersects[0].object;
+    // Si l'objet est sélectionnable, on appelle la fonction selection_travel()
+    if (topObj.userData.selection) {
+      selection_travel(topObj.userData.name);
+    }
+  }
+}
+
+/****************************************
+ * 7) Fonction déclenchée au clic sur une image sélectionnable
+ ****************************************/
+function selection_travel(imageName) {
+  // Exemple de logique conditionnelle :
+  if (imageName === "home") {
+    console.log("home");
+    // ...
+  } else if (imageName === "solo") {
+    
+    // Préparation de la transition : la caméra va vers (x, y)
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 1, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+
+    console.log("solo", transitionTarget);
+  } else if (imageName === "multi") {
+    console.log("multi");
+    // Préparation de la transition : la caméra va vers (x, y)
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * 0, window.innerHeight * -1, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+  } 
+  else if (imageName === "config") {
+    console.log("config");
+    // Préparation de la transition : la caméra va vers (x, y)
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 2, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+  }
+  else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc") {
+    console.log(imageName);
+    if(imageName === "50cc") level_cube = 1;
+    if(imageName === "100cc") level_cube = 2;
+    if(imageName === "150cc") level_cube = 3;
+    if(imageName === "200cc") level_cube = 4;
+    // Préparation de la transition : la caméra va vers (x, y)
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * 1, camera_select.position.y, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+  }
+  else {
+    console.log("Action par défaut pour", imageName);
+  }
+}
+
 
 
 // === Boucle d'animation ===
@@ -1287,7 +1417,8 @@ function animate() {
   commandeInterpretor();
   if(statusWolrd === "select"){
     particulesSelectMenu();
-    animateCameraSelect();
+    select_menu();
+    //animateCameraSelect();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
@@ -1425,6 +1556,7 @@ animate();
 
 // === Ajustement lors du redimensionnement de la fenêtre ===
 window.addEventListener('resize', () => {
+  onWindowResize(window);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
