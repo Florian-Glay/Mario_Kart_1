@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "select";
+var statusWolrd = "runsolo";
 var initialWindowWidth = window.innerWidth;
 var level_cube = 1;
 
@@ -234,12 +234,12 @@ boxBody.updateMassProperties();
 world.addBody(boxBody);
 
 // === Chargement du modèle de la voiture (kart) ===
-let kart;
+let kart,mixer;
 loader.load(
-  '3D_Model/car_1.glb',
+  '3D_Model/car_5.glb',
   (gltf) => {
     kart = gltf.scene;
-    kart.scale.set(50, 50, 50);
+    kart.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart.position.set(-1850, 0, -38);
     // Orientation initiale
@@ -248,6 +248,14 @@ loader.load(
       if (child.isMesh) child.frustumCulled = false;
     });
     scene.add(kart);
+
+    // Si le modèle contient des animations, on les active via AnimationMixer
+    if (gltf.animations && gltf.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(kart);
+      const action = mixer.clipAction(gltf.animations[0]); // on utilise la première animation
+      action.play();
+    }
+
   },
   undefined,
   console.error
@@ -278,7 +286,7 @@ world.addBody(boxBody_2);
 // === Chargement du modèle de la voiture (kart) ===
 let kart_2;
 loader.load(
-  '3D_Model/car_1.glb',
+  '3D_Model/car_2.glb',
   (gltf) => {
     kart_2 = gltf.scene;
     kart_2.scale.set(50, 50, 50);
@@ -874,6 +882,8 @@ function commandeInterpretor(){
 function gameRun(){
   // Mise à jour du monde physique
   world.step(timeStep);
+  const delta = clock.getDelta();
+  if (mixer) mixer.update(delta);
   updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
