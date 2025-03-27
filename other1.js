@@ -1012,6 +1012,16 @@ function select_menu(){
       easedProgress
     );
   }
+  scene_select.children.forEach((mesh) => {
+    if (mesh.isMesh && mesh.userData && mesh.userData.name === "retour") {
+      if (camera_select.position.x == 0 && camera_select.position.y == 0) {
+        mesh.visible = false;
+      } else {
+        mesh.visible = true;
+        mesh.position.set(-575 + camera_select.position.x, -252 + camera_select.position.y, 0);
+      }
+    }
+  });
 }
 
 // ===================================================================================================
@@ -1103,6 +1113,9 @@ const plansList = [
     fitByHeight: false,size: 0.5, x: 0,y: -80-window.innerHeight,z: 0,selection: true},
   {name: "200cc",image: "Image/200cc_unselect.png", image_select:"Image/200cc_select.png",
     fitByHeight: false,size: 0.5, x: 0,y: -200-window.innerHeight,z: 0,selection: true},
+
+  {name: "retour",image: "Image/retour_unselect.png", image_select:"Image/retour_select.png",
+    fitByHeight: false,size: 0.3, x: -575,y: -252,z: 0,selection: true},
 ];
 
 // Indice du plan actuel pour la navigation
@@ -1248,23 +1261,18 @@ function onWindowResize(myWindow) {
   // Mise à jour du renderer et de la caméra
   renderer.setSize(myWindow.innerWidth, myWindow.innerHeight);
   camera_select.aspect = myWindow.innerWidth / myWindow.innerHeight;
-  console.log("myWindow.innerHeight",myWindow.innerHeight);
   camera_select.updateProjectionMatrix();
 
   // Parcours des objets de la scène
   scene_select.children.forEach((mesh) => {
     // Vérification : c'est un mesh avec userData.aspect
     if (mesh.isMesh && mesh.userData && mesh.userData.aspect !== undefined) {
-      console.log("mesh.userData.aspect",mesh.userData.aspect);
       if (mesh.userData.fitByHeight) {
-        console.log("mesh.userData.fitByHeight",mesh.userData.fitByHeight);
         // === fitByHeight = true ===
         // L'image prend toujours la hauteur de l'écran, on recalcule
         const aspect = mesh.userData.aspect;
         const newHeight = myWindow.innerHeight;
         const newWidth = myWindow.innerHeight * aspect;
-        console.log("newWidth", newWidth , mesh.userData.originalWidth,aspect);
-        console.log("newHeight", newHeight , mesh.userData.originalHeight,aspect);
 
         mesh.geometry.dispose();
         mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
@@ -1273,7 +1281,6 @@ function onWindowResize(myWindow) {
         // === fitByHeight = false ===
         // On agrandit/rétrécit selon la variation de la fenêtre
         // par rapport à la taille initiale enregistrée
-        console.log("mesh.userData.fitByHeight",mesh.userData.fitByHeight);
         const ratio = myWindow.innerWidth / initialWindowWidth; // ou un autre calcul si besoin
         const originalWidth = mesh.userData.originalWidth;
         const originalHeight = mesh.userData.originalHeight;
@@ -1341,6 +1348,8 @@ function onMouseMove(event) {
   }
 }
 
+var menu_name = "home";
+
 function onMouseClick(event) {
   // Même logique de raycaster
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -1357,6 +1366,7 @@ function onMouseClick(event) {
   }
 }
 
+
 /****************************************
  * 7) Fonction déclenchée au clic sur une image sélectionnable
  ****************************************/
@@ -1364,7 +1374,11 @@ function selection_travel(imageName) {
   // Exemple de logique conditionnelle :
   if (imageName === "home") {
     console.log("home");
-    // ...
+    menu_name = "home";
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 0, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
   } else if (imageName === "solo") {
     
     // Préparation de la transition : la caméra va vers (x, y)
@@ -1372,10 +1386,11 @@ function selection_travel(imageName) {
     transitionTarget.set(window.innerWidth * 0, window.innerHeight * 1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
-
+    menu_name = "solo";
     console.log("solo", transitionTarget);
   } else if (imageName === "multi") {
     console.log("multi");
+    menu_name = "multi";
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
     transitionTarget.set(window.innerWidth * 0, window.innerHeight * -1, camera_select.position.z);
@@ -1384,6 +1399,7 @@ function selection_travel(imageName) {
   } 
   else if (imageName === "config") {
     console.log("config");
+    menu_name = "config";
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
     transitionTarget.set(window.innerWidth * 0, window.innerHeight * 2, camera_select.position.z);
@@ -1391,6 +1407,8 @@ function selection_travel(imageName) {
     isTransitioning = true;
   }
   else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc") {
+    if(menu_name === "solo"){menu_name = "perso_solo";}
+    if(menu_name === "multi"){menu_name = "nb_multi";}
     console.log(imageName);
     if(imageName === "50cc") level_cube = 1;
     if(imageName === "100cc") level_cube = 2;
@@ -1401,6 +1419,12 @@ function selection_travel(imageName) {
     transitionTarget.set(window.innerWidth * 1, camera_select.position.y, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
+  }
+  else if(imageName === "retour"){
+    console.log("retour");
+    if(menu_name == "multi" || menu_name == "solo" || menu_name == "config"){selection_travel("home")}
+    if(menu_name == "nb_multi"){selection_travel("multi")}
+    if(menu_name == "perso_solo"){selection_travel("solo")}
   }
   else {
     console.log("Action par défaut pour", imageName);
