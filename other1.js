@@ -234,7 +234,7 @@ boxBody.updateMassProperties();
 world.addBody(boxBody);
 
 // === Chargement du modèle de la voiture (kart) ===
-let kart,mixer;
+let kart;//,mixer;
 loader.load(
   '3D_Model/car_5.glb',
   (gltf) => {
@@ -245,16 +245,25 @@ loader.load(
     // Orientation initiale
     kart.rotation.y = Math.PI;
     kart.traverse((child) => {
-      if (child.isMesh) child.frustumCulled = false;
+      if (child.isMesh){
+        child.frustumCulled = false;
+        child.frustumCulled = false;
+
+        const mat = child.material;
+        if (mat && mat.metalness !== undefined) {
+          mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
+          mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
+        }
+      }
     });
     scene.add(kart);
 
-    // Si le modèle contient des animations, on les active via AnimationMixer
-    if (gltf.animations && gltf.animations.length > 0) {
-      mixer = new THREE.AnimationMixer(kart);
-      const action = mixer.clipAction(gltf.animations[0]); // on utilise la première animation
-      action.play();
-    }
+    // // Si le modèle contient des animations, on les active via AnimationMixer
+    // if (gltf.animations && gltf.animations.length > 0) {
+    //   mixer = new THREE.AnimationMixer(kart);
+    //   const action = mixer.clipAction(gltf.animations[0]); // on utilise la première animation
+    //   action.play();
+    // }
 
   },
   undefined,
@@ -882,8 +891,8 @@ function commandeInterpretor(){
 function gameRun(){
   // Mise à jour du monde physique
   world.step(timeStep);
-  const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
+  //const delta = clock.getDelta();
+  //if (mixer) mixer.update(delta);
   updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
