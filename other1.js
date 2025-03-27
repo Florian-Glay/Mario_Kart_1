@@ -253,6 +253,9 @@ loader.load(
         if (mat && mat.metalness !== undefined) {
           mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
           mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
+          mat.envMapIntensity = 0.5;     // réflexions HDRI modérées
+          mat.toneMapped = true;         // affecté par le tone mapping
+          mat.emissive.set(0x000000);    // pas d’auto-éclairage
         }
       }
     });
@@ -324,7 +327,6 @@ boxBody.addEventListener("collide", (event) => {
   if (otherBody.terrainType) {
     currentTerrainType = otherBody.terrainType;
     // Vous pouvez afficher dans la console pour tester :
-    console.log("Collision avec terrain:", currentTerrainType);
   }
 });
 
@@ -345,7 +347,6 @@ loader.load(
     scene.add(circuitTerrain);
     // Calcul de la bounding box pour le terrain circuit
     circuitBB = new THREE.Box3().setFromObject(circuitTerrain);
-    console.log("BoundingBox circuit:", circuitBB);
   },
   undefined,
   console.error
@@ -364,7 +365,6 @@ loader.load(
     scene.add(dirtTerrain);
     // Calcul de la bounding box pour le terrain dirt
     dirtBB = new THREE.Box3().setFromObject(dirtTerrain);
-    console.log("BoundingBox dirt:", dirtBB);
   },
   undefined,
   console.error
@@ -422,7 +422,6 @@ function createTerrainPlane(name, imageUrl, position, scale, draw) {
     terrainPlanes[name].imageData = imageData;
     terrainPlanes[name].imgWidth = image.width;
     terrainPlanes[name].imgHeight = image.height;
-    console.log("Texture", name, "chargée avec dimensions", image.width, image.height);
     
     // Appeler la fonction de débogage pour afficher les zones actives
     // Vous pouvez définir la couleur différemment pour "road" et "dirt"
@@ -431,6 +430,9 @@ function createTerrainPlane(name, imageUrl, position, scale, draw) {
         debugDisplayTerrain(name, 0xff0000); // par exemple en rouge pour la route
       } else if(name === "dirt") {
         debugDisplayTerrain(name, 0x00ff00); // en vert pour le terrain dirt
+      }
+      else{ 
+        debugDisplayTerrain(name, 0x0000ff); // en vert pour le terrain boost
       }
     }
   });
@@ -468,6 +470,13 @@ const mult = 0;
 createTerrainPlane("road", "Image/road.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 },false);
 // Et pour le dirt :
 createTerrainPlane("dirt", "Image/dirt.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+// Et pour le boost :
+createTerrainPlane("boostTrap", "Image/boostTrap.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+
+createTerrainPlane("step_1", "Image/step_1.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+createTerrainPlane("step_2", "Image/step_2.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+createTerrainPlane("step_3", "Image/step_3.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
+createTerrainPlane("step_4", "Image/step_4.png", { x: -45, y: -45, z: -240 }, { width: 4600, depth: 4020 }, false);
 
 // Fonction qui teste si la voiture (ici, on prend la position de boxMesh) se trouve sur la partie opaque d'un terrain donné
 function isCarOnTerrain(terrainName, carMesh) {
@@ -504,44 +513,123 @@ function updateCarSpeed(boxCar) {
   let speedMultiplier = 1; // Vitesse normale par défaut
   if (isCarOnTerrain("road",boxCar)) {
     speedMultiplier = 1;
-    console.log("Véhicule sur road",boxCar);
   } else if (isCarOnTerrain("dirt",boxCar)) {
     speedMultiplier = 0.5;
-    console.log("Véhicule sur dirt");
   }
+  
   return speedMultiplier;
 }
 
+var tour = [false,false,false,false];
+
+function tourUpdate(boxCarMesh){
+  if (isCarOnTerrain("step_4",boxCarMesh)) {
+    if(!tour[0]) tour[0] = true;
+    if(tour[0] && tour[1] && tour[2] && tour[3]){
+      tour = [false,false,false,false];
+      console.log("Tour Complet");
+    } 
+  }
+  if (isCarOnTerrain("step_1",boxCarMesh)) {
+    if(tour[0] && !tour[1]) tour[1] = true;
+  }
+  if (isCarOnTerrain("step_2",boxCarMesh)) {
+    if(tour[1] && !tour[2]) tour[2] = true;
+  }
+  if (isCarOnTerrain("step_3",boxCarMesh)) {
+    if(tour[2] && !tour[3]) tour[3] = true;
+  }
+}
 
 
 // === Gestion des contrôles clavier (Z, Q, S, D) ===
 const keys = { z: false, s: false, q: false, d: false , o:false, l:false, k:false, m:false};
-window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+//window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+//window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+let lastLeftKeyReleaseTime = 0;
+let lastRightKeyReleaseTime = 0;
+let isDriftingLeft = false;
+let isDriftingRight = false;
+const doubleTapThreshold = 200; // en millisecondes
+const driftMultiplier = 1.5; // facteur d'augmentation de la rotation en drift
+// Pour le boost après un drift continu
+let driftActiveTime = 0;
+let isBoostActive = false;
+let boostTimer = 0;
+const boostDuration = 1; // durée du boost en secondes
+var boostMultiplier = 0; // facteur d'accélération du boost
+
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'q') {
+    const now = Date.now();
+    // Si on a relâché et qu'on réappuie dans les 50ms, on active le drift
+    if (lastLeftKeyReleaseTime && (now - lastLeftKeyReleaseTime < doubleTapThreshold)) {
+      isDriftingLeft = true;
+    }
+    keys['q'] = true;
+  }
+  if (key === 'd') {
+    const now = Date.now();
+    if (lastRightKeyReleaseTime && (now - lastRightKeyReleaseTime < doubleTapThreshold)) {
+      isDriftingRight = true;
+    }
+    keys['d'] = true;
+  }
+  else{
+    keys[key] = true;
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'q') {
+    lastLeftKeyReleaseTime = Date.now();
+    isDriftingLeft = false;
+    keys['q'] = false;
+  }
+  if (key === 'd') {
+    lastRightKeyReleaseTime = Date.now();
+    isDriftingRight = false;
+    keys['d'] = false;
+  }
+  else{
+    keys[key] = false;
+  }
+});
 
 // === Mise à jour des contrôles de la boîte ===
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
 function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight) {
-  
-  const speed = 200 * level_cube;
-  const rotationSpeed = 1.5 * level_cube;
+  const baseSpeed = 200 * level_cube;
+  const rotationSpeed = 1 * level_cube;
+  const driftRotationSpeed = rotationSpeed * 1.5; // Vous pouvez ajuster ce multiplicateur
 
+  // Calcul de la direction de la caméra
   let camDirection = new THREE.Vector3();
   cam.getWorldDirection(camDirection);
   camDirection.y = 0;
   camDirection.normalize();
+  if (isCarOnTerrain("boostTrap",boxCarMesh)) {
+    boostTimer = boostDuration;
+    hadBoost = true;
+  }
   
   let movement = new THREE.Vector3(0, 0, 0);
   
   if (keyMove) {
-    movement.add(camDirection.clone().multiplyScalar(speed*updateCarSpeed(boxCarMesh)));
+    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
+    currentSpeed *= 1 + boostMultiplier;
+    movement.add(camDirection.clone().multiplyScalar(currentSpeed));
   }
   if (keyBack) {
-    movement.add(camDirection.clone().multiplyScalar(-speed*updateCarSpeed(boxCarMesh)));
+    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
+    currentSpeed *= 1 + boostMultiplier;
+    movement.add(camDirection.clone().multiplyScalar(-currentSpeed));
   }
   
-  // Mise à jour de la vitesse du corps sur les axes X et Z
+  // Mise à jour de la vélocité du corps
   boxCarBody.velocity.x = movement.x;
   boxCarBody.velocity.z = movement.z;
   
@@ -549,13 +637,61 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
     boxCarBody.wakeUp();
   }
   
-  
+  // Gestion de la rotation/dérapage
   if (keyLeft) {
-    boxCarBody.angularVelocity.y = rotationSpeed;
+    if (isDriftingLeft) {
+      boxCarBody.angularVelocity.y = driftRotationSpeed;
+      spawnDriftParticle(boxCarMesh, 'left');
+    } else {
+      boxCarBody.angularVelocity.y = rotationSpeed;
+    }
   } else if (keyRight) {
-    boxCarBody.angularVelocity.y = -rotationSpeed;
+    if (isDriftingRight) {
+      boxCarBody.angularVelocity.y = -driftRotationSpeed;
+      spawnDriftParticle(boxCarMesh, 'right');
+    } else {
+      boxCarBody.angularVelocity.y = -rotationSpeed;
+    }
   } else {
     boxCarBody.angularVelocity.y *= 0.9;
+  }
+}
+var gotBoost = false;
+var hadBoost = false;
+function boostUpdate(dlt) {
+  const deltaTime = dlt;
+  // Si l'utilisateur effectue un drift (appui sur Q ou D)
+  if (isDriftingRight || isDriftingLeft) {
+    driftActiveTime += deltaTime;
+    if (!isBoostActive && driftActiveTime >= 1) {
+      isBoostActive = true;
+      boostTimer = boostDuration;
+    }
+  } else {
+    // Réinitialisation si aucune touche de drift n'est pressée
+    driftActiveTime = 0;
+    if(isBoostActive){
+      gotBoost = true;
+      isBoostActive = false;
+    }else{
+      gotBoost = false;
+      isBoostActive = false;
+    }
+  }
+  
+  // Décrémenter le timer du boost
+  if (gotBoost || hadBoost) {
+    boostTimer -= deltaTime;
+    gotBoost = false;
+    hadBoost = true;
+    if (boostTimer <= 0) {
+      hadBoost = false;
+      driftActiveTime = 0;
+    }
+    boostMultiplier = 1; // boost de 2x
+  }
+  else {
+    boostMultiplier *= 0.9; // pas de boost
   }
 }
 
@@ -567,6 +703,60 @@ function updateCamera(boxCarMesh, camera, rot_speed) {
   const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
   camera.position.lerp(desiredCameraPos, 0.1 * rot_speed);
   camera.lookAt(boxCarMesh.position);
+}
+
+
+let driftParticles = [];
+
+function spawnDriftParticle(carMesh, direction) {
+  // Calculer une position d'apparition : légèrement derrière la voiture,
+  // avec un décalage réduit pour concentrer la traînée.
+  const offset = new THREE.Vector3();
+  if (direction === 'left') {
+    offset.set(1, 0, -3); // décalage réduit pour un effet serré
+  } else {
+    offset.set(-1, 0, -3);
+  }
+  // Appliquer la rotation de la voiture à l'offset
+  offset.applyQuaternion(carMesh.quaternion);
+  // Ajouter une petite variation aléatoire pour densifier la traînée
+  offset.x += (Math.random() - 0.5) * 2;
+  offset.y += (Math.random() - 0.5) * 2;
+  offset.z += (Math.random() - 0.5) * 2;
+  
+  const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
+  // Déterminer la couleur : orange en boost, bleu sinon
+  const particleColor = isBoostActive ? 0xff8800 : 0x00aaff;
+  
+  // Créer une petite sphère bleue avec un effet luminescent
+  const geometry = new THREE.SphereGeometry(0.3, 8, 8); // particule plus petite
+  const material = new THREE.MeshBasicMaterial({
+    color: particleColor, // bleu lumineux
+    transparent: true,
+    opacity: 1,
+    blending: THREE.AdditiveBlending, // pour un effet lumineux
+    depthWrite: false, // évite d'écrire dans le buffer de profondeur
+  });
+  const particle = new THREE.Mesh(geometry, material);
+  particle.position.copy(spawnPos);
+  particle.userData = { lifetime: 0 }; // pour gérer la durée de vie
+  scene.add(particle);
+  driftParticles.push(particle);
+}
+
+function updateDriftParticles(dlt) {
+  const deltaTime = dlt;
+  // À intégrer dans votre fonction animate()
+  for (let i = driftParticles.length - 1; i >= 0; i--) {
+    const p = driftParticles[i];
+    p.userData.lifetime += deltaTime;
+    // Diminuer l'opacité sur 1 seconde
+    p.material.opacity = Math.max(0, 1 - p.userData.lifetime);
+    if (p.userData.lifetime > 0.2) {
+      scene.remove(p);
+      driftParticles.splice(i, 1);
+    }
+  }
 }
 
 // === Création de cube ===
@@ -917,7 +1107,7 @@ function gameRun(){
     cube.mesh.position.copy(cube.body.position);
     cube.mesh.quaternion.copy(cube.body.quaternion);
   });
-  
+  tourUpdate(boxMesh);
   // Mise à jour de la caméra
   updateCamera(boxMesh, camera, level_cube);
   //updateVehicleCoordinates()
@@ -1450,6 +1640,11 @@ function selection_travel(imageName) {
   }
 }
 
+function theUpdateGame(){
+  const deltaTime = clock.getDelta();
+  updateDriftParticles(deltaTime);
+  boostUpdate(deltaTime);
+}
 
 
 // === Boucle d'animation ===
@@ -1458,6 +1653,7 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   commandeInterpretor();
+  theUpdateGame();
   if(statusWolrd === "select"){
     particulesSelectMenu();
     select_menu();
