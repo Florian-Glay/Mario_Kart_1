@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "runsolo";
+var statusWolrd = "select";
 var initialWindowWidth = window.innerWidth;
 var level_cube = 1;
 
@@ -161,6 +161,12 @@ dirLight.castShadow = true;
 // Ajustez le shadow camera pour couvrir la scène si besoin
 scene.add(dirLight);
 
+const dirLight_2 = new THREE.DirectionalLight(0xffffff, 1);
+dirLight_2.position.set(window.innerWidth * 1, window.innerHeight * 1, 100);
+dirLight_2.castShadow = true;
+// Ajustez le shadow camera pour couvrir la scène si besoin
+scene_select.add(dirLight_2);
+
 // Background
 scene.background = new THREE.TextureLoader().load('smoky-watercolor-cloud-background.jpg');
 
@@ -247,7 +253,6 @@ loader.load(
     kart.traverse((child) => {
       if (child.isMesh){
         child.frustumCulled = false;
-        child.frustumCulled = false;
 
         const mat = child.material;
         if (mat && mat.metalness !== undefined) {
@@ -314,6 +319,46 @@ loader.load(
   undefined,
   console.error
 );
+
+// === Chargement du modèle de la voiture (kart) ===
+let perso_1;
+loader.load(
+  '3D_Model/mario_arma.glb',
+  (gltf) => {
+    perso_1 = gltf.scene;
+    perso_1.name = "perso";
+    perso_1.scale.set(5, 5, 5);
+    // Position initiale (sera remplacée dans l'animation)
+    perso_1.position.set(window.innerWidth * 1, window.innerHeight * 0.9, 0);
+    // Orientation initiale
+    perso_1.rotation.x = Math.PI/10;
+    perso_1.rotation.y = 0;
+    perso_1.traverse((child) => {
+      if (child.isMesh) {
+        child.frustumCulled = false;
+    
+        // Remplacer le matériau PBR par un matériau qui s'affiche sans lumière
+        const oldMat = child.material;
+    
+        // Si le mesh a une texture
+        let map = oldMat.map || null;
+    
+        child.material = new THREE.MeshBasicMaterial({
+          map: map,
+          color: oldMat.color || 0xffffff,
+          side: THREE.DoubleSide,
+        });
+      }
+    });
+    scene_select.add(perso_1);
+    },
+  undefined,
+  console.error
+);
+
+function rotatePerso(perso){
+  if(perso) perso.rotation.y += 0.02;
+}
 
 
 // === Vitesse voiture ===
@@ -1198,7 +1243,7 @@ function select_menu(){
   
   // Mise à jour du temps écoulé
   const delta = clock.getDelta();
-
+  rotatePerso(perso_1);
   // Transition fluide de la caméra
   if (isTransitioning) {
     transitionElapsed += delta;
@@ -1531,6 +1576,7 @@ document.addEventListener("keydown", (event) => {
  ****************************************/
 document.addEventListener("mousemove", onMouseMove);
 document.addEventListener("click", onMouseClick);
+const hoveredPersos = new Set(); // contient les objets "perso" actuellement survolés
 
 function onMouseMove(event) {
   // Convertit la position de la souris en coordonnées normalisées (-1 à +1)
@@ -1539,7 +1585,7 @@ function onMouseMove(event) {
 
   // Raycaster depuis la caméra
   raycaster.setFromCamera(mouse, camera_select);
-  const intersects = raycaster.intersectObjects(scene_select.children, false);
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
 
   // Remettre tous les plans sélectionnables à leur matériau normal
   scene_select.children.forEach((obj) => {
@@ -1555,16 +1601,45 @@ function onMouseMove(event) {
       topObj.material = topObj.userData.hoverMaterial;
     }
   }
+
+  // Réinitialise les objets survolés
+  hoveredPersos.clear();
+
+  if (intersects.length > 0) {
+    const hovered = intersects[0].object;
+
+    scene_select.traverse((obj) => {
+      if (obj.name === "perso" && (obj === hovered || obj.getObjectById(hovered.id))) {
+        hoveredPersos.add(obj);
+      }
+    });
+  }
+
+}
+
+function grossissmentPerso(){
+  // Animation smooth des objets "perso"
+  scene_select.traverse((obj) => {
+    if (obj.name === "perso") {
+      const targetScale = hoveredPersos.has(obj) ? 7 : 5;
+
+      // Lerp progressif vers l’échelle cible
+      obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
+      obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
+      obj.scale.z = THREE.MathUtils.lerp(obj.scale.z, targetScale, 0.1);
+    }
+  });
 }
 
 var menu_name = "home";
+const selection_perso = new Set(); // stocke les objets sélectionnés
 
 function onMouseClick(event) {
   // Même logique de raycaster
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera_select);
-  const intersects = raycaster.intersectObjects(scene_select.children, false);
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
 
   if (intersects.length > 0) {
     const topObj = intersects[0].object;
@@ -1573,7 +1648,58 @@ function onMouseClick(event) {
       selection_travel(topObj.userData.name);
     }
   }
+
+  if (intersects.length > 0) {
+    const clicked = intersects[0].object;
+
+    // Trouver l'objet parent nommé "perso"
+    let perso = clicked;
+    while (perso && perso.name !== "perso") {
+      perso = perso.parent;
+    }
+
+    if (perso && perso.name === "perso") {
+      if (selection_perso.has(perso)) {
+        // Si déjà sélectionné → on désélectionne
+        selection_perso.delete(perso);
+
+        const label = perso.getObjectByName("selection_label");
+        if (label) perso.remove(label);
+      } else {
+        // Sinon → on sélectionne
+        selection_perso.add(perso);
+
+        const label = createSelectionLabel();
+        label.name = "selection_label";
+        label.position.set(0, 20, 0); // au-dessus du perso
+        perso.add(label);
+      }
+    }
+  }
 }
+
+function createSelectionLabel() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 64;
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#007bff"; // bleu
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "28px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Sélectionné", canvas.width / 2, canvas.height / 2 + 10);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(20, 5, 10); // adapte la taille à ta scène
+
+  return sprite;
+}
+
+
 
 
 /****************************************
@@ -1653,9 +1779,10 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   commandeInterpretor();
-  theUpdateGame();
+  
   if(statusWolrd === "select"){
     particulesSelectMenu();
+    grossissmentPerso();
     select_menu();
     //animateCameraSelect();
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1664,6 +1791,7 @@ function animate() {
     renderer.render(scene_select, camera_select);
   }
   else if (statusWolrd === "runsolo") {
+    theUpdateGame();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
