@@ -6,9 +6,13 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "select";
-var initialWindowWidth = window.innerWidth;
+var statusWolrd = "runsolo";
 var level_cube = 1;
+var start_place = [
+  {x:-2003, z:-505},{x:-1975, z:-465},{x:-1947, z:-425},{x:-1919, z:-385},{x:-1891, z:-345},
+  {x:-1863, z:-305},{x:-1989, z:-270},{x:-1961, z:-230},{x:-1933, z:-190},{x:-1905, z:-150},
+  {x:-1877, z:-105},{x:-1850, z:-65}
+]
 
 // Récupération des éléments
 const chatIcon = document.getElementById('chat-icon');
@@ -60,6 +64,15 @@ const camera_2 = new THREE.PerspectiveCamera(
   1000000
 );
 camera_2.position.set(0, 150, 300);
+
+// === camera 3 ===
+const camera_3 = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000000
+);
+camera_3.position.set(0, 150, 300);
 
 // === camera map ===
 const camera_map = new THREE.PerspectiveCamera(
@@ -232,7 +245,7 @@ scene.add(boxMesh);
 const boxBody = new CANNON.Body({
   mass: 200,
   shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
-  position: new CANNON.Vec3(-1850, 0, -65)
+  position: new CANNON.Vec3(start_place[11].x, -20, start_place[11].z)
 });
 boxBody.quaternion.setFromEuler(0,-Math.PI, 0);
 boxBody.fixedRotation = true;
@@ -247,7 +260,7 @@ loader.load(
     kart = gltf.scene;
     kart.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
-    kart.position.set(-1850, 0, -38);
+    kart.position.set(-2000, -20, -500);
     // Orientation initiale
     kart.rotation.y = Math.PI;
     kart.traverse((child) => {
@@ -293,7 +306,7 @@ scene.add(boxMesh_2);
 const boxBody_2 = new CANNON.Body({
   mass: 200,
   shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
-  position: new CANNON.Vec3(-1950, 0, 65)
+  position: new CANNON.Vec3(start_place[10].x, -20, start_place[10].z)
 });
 boxBody_2.quaternion.setFromEuler(0,-Math.PI, 0);
 boxBody_2.fixedRotation = true;
@@ -303,16 +316,26 @@ world.addBody(boxBody_2);
 // === Chargement du modèle de la voiture (kart) ===
 let kart_2;
 loader.load(
-  '3D_Model/car_2.glb',
+  '3D_Model/mario_arma.glb',
   (gltf) => {
     kart_2 = gltf.scene;
-    kart_2.scale.set(50, 50, 50);
+    kart_2.scale.set(1, 1, 1);
     // Position initiale (sera remplacée dans l'animation)
-    kart_2.position.set(-1950, 0, 65);
+    kart_2.position.set(-1950, -500, 65);
     // Orientation initiale
     kart_2.rotation.y = Math.PI;
     kart_2.traverse((child) => {
-      if (child.isMesh) child.frustumCulled = false;
+      if (child.isMesh){
+        child.frustumCulled = false;
+        const mat = child.material;
+        if (mat && mat.metalness !== undefined) {
+          mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
+          mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
+          mat.envMapIntensity = 0.5;     // réflexions HDRI modérées
+          mat.toneMapped = true;         // affecté par le tone mapping
+          mat.emissive.set(0x000000);    // pas d’auto-éclairage
+        }
+      } 
     });
     scene.add(kart_2);
   },
@@ -320,69 +343,59 @@ loader.load(
   console.error
 );
 
-// === Chargement du modèle de la voiture (kart) ===
-let perso_1;
-loader.load('3D_Model/mario_arma.glb', (gltf) => {
-  perso_1 = gltf.scene;
-  perso_1.name = "perso";
-  
-  // Échelle de référence
-  const baseScale = 5;
-  
-  // --- 1) On stocke la position de référence dans userData ---
-  perso_1.userData.refPos = { x: 1280, y: 0.9 * 551 };
-  perso_1.userData.refScale = baseScale;
-  
-  // --- 2) On calcule les ratios actuels ---
-  const { ratioW, ratioH } = getScaleRatios();
-  // Souvent, on prend un ratio “minimum” ou “maximum” pour l’échelle 3D.
-  const ratioMin = Math.min(ratioW, ratioH);
-  
-  // --- 3) Positionner le modèle en tenant compte des ratios ---
-  const scaledX = perso_1.userData.refPos.x * ratioW;
-  const scaledY = perso_1.userData.refPos.y * ratioH;
-  perso_1.position.set(scaledX, scaledY, 0);
-  
-  // --- 4) Ajuster la taille (scale) du modèle si besoin ---
-  perso_1.scale.set(baseScale * ratioMin, baseScale * ratioMin, baseScale * ratioMin);
-  
-  // --- 5) Orientations, matériaux, etc. ---
-  perso_1.rotation.x = Math.PI / 10;
-  perso_1.traverse((child) => {
-    if (child.isMesh) {
-      child.frustumCulled = false;
-      // Remplacer le matériau PBR par un MeshBasicMaterial
-      const oldMat = child.material;
-      let map = oldMat.map || null;
-      child.material = new THREE.MeshBasicMaterial({
-        map: map,
-        color: oldMat.color || 0xffffff,
-        side: THREE.DoubleSide,
-      });
-    }
-  });
-
-  scene_select.add(perso_1);
+// === 3eme VOITURE ===
+const boxGeo_3 = new THREE.BoxGeometry(17, 5, 25);
+const boxMat_3 = new THREE.MeshBasicMaterial({
+  color: 0x00ff00,
+  wireframe: true
 });
+const boxMesh_3 = new THREE.Mesh(boxGeo_3, boxMat_3);
+boxMesh_3.visible = false;
+scene.add(boxMesh_3);
 
-function rotatePerso(perso){
-  if(perso) perso.rotation.y += 0.02;
-}
+// Corps physique Cannon-es
+const boxBody_3 = new CANNON.Body({
+  mass: 200,
+  shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
+  position: new CANNON.Vec3(start_place[9].x, -20, start_place[9].z)
+});
+boxBody_3.quaternion.setFromEuler(0,-Math.PI, 0);
+boxBody_3.fixedRotation = true;
+boxBody_3.updateMassProperties();
+world.addBody(boxBody_3);
+
+// === Chargement du modèle de la voiture (kart) ===
+let kart_3;
+loader.load(
+  '3D_Model/mario_arma.glb',
+  (gltf) => {
+    kart_3 = gltf.scene;
+    kart_3.scale.set(1, 1, 1);
+    // Position initiale (sera remplacée dans l'animation)
+    kart_3.position.set(-1650, -500, 300);
+    // Orientation initiale
+    kart_3.rotation.y = Math.PI;
+    kart_3.traverse((child) => {
+      if (child.isMesh){
+        child.frustumCulled = false;
+        const mat = child.material;
+        if (mat && mat.metalness !== undefined) {
+          mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
+          mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
+          mat.envMapIntensity = 0.5;     // réflexions HDRI modérées
+          mat.toneMapped = true;         // affecté par le tone mapping
+          mat.emissive.set(0x000000);    // pas d’auto-éclairage
+        }
+      } 
+    });
+    scene.add(kart_3);
+  },
+  undefined,
+  console.error
+);
 
 
 // === Vitesse voiture ===
-
-// Variable globale indiquant le terrain sur lequel se trouve la voiture
-let currentTerrainType = "road"; // par défaut
-
-// À chaque collision, mettre à jour currentTerrainType
-boxBody.addEventListener("collide", (event) => {
-  const otherBody = event.body;
-  if (otherBody.terrainType) {
-    currentTerrainType = otherBody.terrainType;
-    // Vous pouvez afficher dans la console pour tester :
-  }
-});
 
 // Variables globales pour stocker les bounding boxes
 let circuitBB, dirtBB;// Variables globales pour stocker les terrains
@@ -597,24 +610,51 @@ function tourUpdate(boxCarMesh){
 
 
 // === Gestion des contrôles clavier (Z, Q, S, D) ===
-const keys = { z: false, s: false, q: false, d: false , o:false, l:false, k:false, m:false};
+const keys = { z: false, s: false, q: false, d: false , o:false, l:false, k:false, m:false, g:false, b:false, v:false, n:false};
 //window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
 //window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+const doubleTapThreshold = 200; // en millisecondes
+const boostDuration = 1; // durée du boost en secondes
+// Pour le boost après un drift continu
 let lastLeftKeyReleaseTime = 0;
 let lastRightKeyReleaseTime = 0;
 let isDriftingLeft = false;
 let isDriftingRight = false;
-const doubleTapThreshold = 200; // en millisecondes
-const driftMultiplier = 1.5; // facteur d'augmentation de la rotation en drift
-// Pour le boost après un drift continu
 let driftActiveTime = 0;
 let isBoostActive = false;
 let boostTimer = 0;
-const boostDuration = 1; // durée du boost en secondes
 var boostMultiplier = 0; // facteur d'accélération du boost
+var gotBoost = false;
+var hadBoost = false;
+
+let lastLeftKeyReleaseTime_2 = 0;
+let lastRightKeyReleaseTime_2 = 0;
+let isDriftingLeft_2 = false;
+let isDriftingRight_2 = false;
+let driftActiveTime_2 = 0;
+let isBoostActive_2 = false;
+let boostTimer_2 = 0;
+var boostMultiplier_2 = 0;
+var gotBoost_2 = false;
+var hadBoost_2 = false;
+
+let lastLeftKeyReleaseTime_3 = 0;
+let lastRightKeyReleaseTime_3 = 0;
+let isDriftingLeft_3 = false;
+let isDriftingRight_3 = false;
+let driftActiveTime_3 = 0;
+let isBoostActive_3 = false;
+let boostTimer_3 = 0;
+var boostMultiplier_3 = 0;
+var gotBoost_3 = false;
+var hadBoost_3 = false;
+
+
 
 window.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
+  // player 1
   if (key === 'q') {
     const now = Date.now();
     // Si on a relâché et qu'on réappuie dans les 50ms, on active le drift
@@ -629,6 +669,36 @@ window.addEventListener('keydown', (e) => {
       isDriftingRight = true;
     }
     keys['d'] = true;
+  }// player 2
+  if (key === 'k') {
+    const now = Date.now();
+    // Si on a relâché et qu'on réappuie dans les 50ms, on active le drift
+    if (lastLeftKeyReleaseTime_2 && (now - lastLeftKeyReleaseTime_2 < doubleTapThreshold)) {
+      isDriftingLeft_2 = true;
+    }
+    keys['k'] = true;
+  }
+  if (key === 'm') {
+    const now = Date.now();
+    if (lastRightKeyReleaseTime_2 && (now - lastRightKeyReleaseTime_2 < doubleTapThreshold)) {
+      isDriftingRight_2 = true;
+    }
+    keys['m'] = true;
+  }//player 3
+  if (key === 'v') {
+    const now = Date.now();
+    // Si on a relâché et qu'on réappuie dans les 50ms, on active le drift
+    if (lastLeftKeyReleaseTime_3 && (now - lastLeftKeyReleaseTime_3 < doubleTapThreshold)) {
+      isDriftingLeft_3 = true;
+    }
+    keys['v'] = true;
+  }
+  if (key === 'n') {
+    const now = Date.now();
+    if (lastRightKeyReleaseTime_3 && (now - lastRightKeyReleaseTime_3 < doubleTapThreshold)) {
+      isDriftingRight_3 = true;
+    }
+    keys['n'] = true;
   }
   else{
     keys[key] = true;
@@ -637,6 +707,7 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keyup', (e) => {
   const key = e.key.toLowerCase();
+  // player 1
   if (key === 'q') {
     lastLeftKeyReleaseTime = Date.now();
     isDriftingLeft = false;
@@ -646,6 +717,27 @@ window.addEventListener('keyup', (e) => {
     lastRightKeyReleaseTime = Date.now();
     isDriftingRight = false;
     keys['d'] = false;
+  }// player 2
+  if (key === 'k') {
+    lastLeftKeyReleaseTime_2 = Date.now();
+    isDriftingLeft_2 = false;
+    keys['k'] = false;
+  }
+  if (key === 'm') {
+    lastRightKeyReleaseTime_2 = Date.now();
+    isDriftingRight_2 = false;
+    keys['m'] = false;
+  }
+  // player 3
+  if (key === 'v') {
+    lastLeftKeyReleaseTime_3 = Date.now();
+    isDriftingLeft_3 = false;
+    keys['v'] = false;
+  }
+  if (key === 'n') {
+    lastRightKeyReleaseTime_3 = Date.now();
+    isDriftingRight_3 = false;
+    keys['n'] = false;
   }
   else{
     keys[key] = false;
@@ -655,9 +747,9 @@ window.addEventListener('keyup', (e) => {
 // === Mise à jour des contrôles de la boîte ===
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
-function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight) {
+function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight,deltaTime, player) {
   const baseSpeed = 200 * level_cube;
-  const rotationSpeed = 1 * level_cube;
+  const rotationSpeed = 0.7 * level_cube;
   const driftRotationSpeed = rotationSpeed * 1.5; // Vous pouvez ajuster ce multiplicateur
 
   // Calcul de la direction de la caméra
@@ -666,24 +758,36 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
   camDirection.y = 0;
   camDirection.normalize();
   if (isCarOnTerrain("boostTrap",boxCarMesh)) {
-    boostTimer = boostDuration;
-    hadBoost = true;
+    if(player == 1){
+      boostTimer = boostDuration;
+      hadBoost = true;
+    }
+    if(player == 2){
+      boostTimer_2 = boostDuration;
+      hadBoost_2 = true;
+    }
+    if(player == 3){
+      boostTimer_3 = boostDuration;
+      hadBoost_3 = true;
+    }
   }
   
   let movement = new THREE.Vector3(0, 0, 0);
   
   if (keyMove) {
     let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= 1 + boostMultiplier;
-    movement.add(camDirection.clone().multiplyScalar(currentSpeed));
-  }
-  if (keyBack) {
-    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= 1 + boostMultiplier;
-    movement.add(camDirection.clone().multiplyScalar(-currentSpeed));
+    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : boostMultiplier_3));
+    // Multiplie par deltaTime pour obtenir un déplacement en fonction du temps
+    movement.add(camDirection.clone().multiplyScalar(currentSpeed * deltaTime*40));
   }
   
-  // Mise à jour de la vélocité du corps
+  if (keyBack) {
+    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
+    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : boostMultiplier_3));
+    movement.add(camDirection.clone().multiplyScalar(-currentSpeed * deltaTime*40));
+  }
+  
+  // Mise à jour de la vélocité du corps (en supposant que le moteur physique attend des m/s)
   boxCarBody.velocity.x = movement.x;
   boxCarBody.velocity.z = movement.z;
   
@@ -693,16 +797,16 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
   
   // Gestion de la rotation/dérapage
   if (keyLeft) {
-    if (isDriftingLeft) {
+    if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3)) {
       boxCarBody.angularVelocity.y = driftRotationSpeed;
-      spawnDriftParticle(boxCarMesh, 'left');
+      spawnDriftParticle(boxCarMesh, 'left',player);
     } else {
       boxCarBody.angularVelocity.y = rotationSpeed;
     }
   } else if (keyRight) {
-    if (isDriftingRight) {
+    if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3)) {
       boxCarBody.angularVelocity.y = -driftRotationSpeed;
-      spawnDriftParticle(boxCarMesh, 'right');
+      spawnDriftParticle(boxCarMesh, 'right',player);
     } else {
       boxCarBody.angularVelocity.y = -rotationSpeed;
     }
@@ -710,10 +814,12 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
     boxCarBody.angularVelocity.y *= 0.9;
   }
 }
-var gotBoost = false;
-var hadBoost = false;
+
+
 function boostUpdate(dlt) {
   const deltaTime = dlt;
+
+  // PLAYER 1
   // Si l'utilisateur effectue un drift (appui sur Q ou D)
   if (isDriftingRight || isDriftingLeft) {
     driftActiveTime += deltaTime;
@@ -747,6 +853,76 @@ function boostUpdate(dlt) {
   else {
     boostMultiplier *= 0.9; // pas de boost
   }
+
+  // PLAYER 2
+
+  if (isDriftingRight_2 || isDriftingLeft_2) {
+    driftActiveTime_2 += deltaTime;
+    if (!isBoostActive_2 && driftActiveTime_2 >= 1) {
+      isBoostActive_2 = true;
+      boostTimer_2 = boostDuration;
+    }
+  } else {
+    // Réinitialisation si aucune touche de drift n'est pressée
+    driftActiveTime_2 = 0;
+    if(isBoostActive_2){
+      gotBoost_2 = true;
+      isBoostActive_2 = false;
+    }else{
+      gotBoost_2 = false;
+      isBoostActive_2 = false;
+    }
+  }
+  
+  // Décrémenter le timer du boost
+  if (gotBoost_2 || hadBoost_2) {
+    boostTimer_2 -= deltaTime;
+    gotBoost_2 = false;
+    hadBoost_2 = true;
+    if (boostTimer_2 <= 0) {
+      hadBoost_2 = false;
+      driftActiveTime_2 = 0;
+    }
+    boostMultiplier_2 = 1; // boost de 2x
+  }
+  else {
+    boostMultiplier_2 *= 0.9; // pas de boost
+  }
+
+  // PLAYER 3
+
+  if (isDriftingRight_3 || isDriftingLeft_3) {
+    driftActiveTime_3 += deltaTime;
+    if (!isBoostActive_3 && driftActiveTime_3 >= 1) {
+      isBoostActive_3 = true;
+      boostTimer_3 = boostDuration;
+    }
+  } else {
+    // Réinitialisation si aucune touche de drift n'est pressée
+    driftActiveTime_3 = 0;
+    if(isBoostActive_3){
+      gotBoost_3 = true;
+      isBoostActive_3 = false;
+    }else{
+      gotBoost_3 = false;
+      isBoostActive_3 = false;
+    }
+  }
+  
+  // Décrémenter le timer du boost
+  if (gotBoost_3 || hadBoost_3) {
+    boostTimer_3 -= deltaTime;
+    gotBoost_3 = false;
+    hadBoost_3 = true;
+    if (boostTimer_3 <= 0) {
+      hadBoost_3 = false;
+      driftActiveTime_3 = 0;
+    }
+    boostMultiplier_3 = 1; // boost de 2x
+  }
+  else {
+    boostMultiplier_3 *= 0.9; // pas de boost
+  }
 }
 
 // === Caméra à la 3e personne ===
@@ -762,7 +938,7 @@ function updateCamera(boxCarMesh, camera, rot_speed) {
 
 let driftParticles = [];
 
-function spawnDriftParticle(carMesh, direction) {
+function spawnDriftParticle(carMesh, direction, player) {
   // Calculer une position d'apparition : légèrement derrière la voiture,
   // avec un décalage réduit pour concentrer la traînée.
   const offset = new THREE.Vector3();
@@ -780,7 +956,7 @@ function spawnDriftParticle(carMesh, direction) {
   
   const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
   // Déterminer la couleur : orange en boost, bleu sinon
-  const particleColor = isBoostActive ? 0xff8800 : 0x00aaff;
+  const particleColor = (player == 1 ? isBoostActive : player == 2 ? isBoostActive_2 : isBoostActive_3) ? 0xff8800 : 0x00aaff;
   
   // Créer une petite sphère bleue avec un effet luminescent
   const geometry = new THREE.SphereGeometry(0.3, 8, 8); // particule plus petite
@@ -813,7 +989,11 @@ function updateDriftParticles(dlt) {
   }
 }
 
-// === Création de cube ===
+// ===================================================================================================
+//
+// CREATIVE MODE
+//
+//====================================================================================================
 
 // Liste globale pour stocker tous les cubes créés
 const cubesList = [];
@@ -1088,7 +1268,14 @@ function createOverlay() {
   }
   
 // Créer l'overlay dès le début
-//createOverlay();
+createOverlay();
+
+// Création des IA
+const aiVehicles = [];
+for (let i = 0; i < 11; i++) {
+  // On suppose que start_place est un tableau d'objets avec des propriétés x et z
+  aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+}
 
 
 // === Fonction de l'interpréteur de commande ===
@@ -1097,6 +1284,7 @@ function commandeInterpretor(){
   chatValue = "";
   if(commande === "runsolo" || commande === "run"){
     statusWolrd = "runsolo";
+
     console.log("Commande:", commande);
   }
   if(commande === "stop"){
@@ -1123,6 +1311,22 @@ function commandeInterpretor(){
     statusWolrd = "select";
     console.log("Commande:", commande);
   }
+  if(commande === "50cc"){
+    level_cube = 1;
+    console.log("Commande:", commande);
+  }
+  if(commande === "150cc"){
+    level_cube = 2;
+    console.log("Commande:", commande);
+  }
+  if(commande === "100cc"){
+    level_cube = 1.5;
+    console.log("Commande:", commande);
+  }
+  if(commande === "200cc"){
+    level_cube = 2.5;
+    console.log("Commande:", commande);
+  }
   
   // Si la commande commence par "c", on passe par cubeLevelCreator
   if(commande.trim().toLowerCase().startsWith("c")){
@@ -1130,14 +1334,19 @@ function commandeInterpretor(){
   }
 }
 
+// Création de la voiture IA (par exemple, avec le modèle "mario_arma.glb")
+// Position de départ : { x: -2050, y: 0, z: 0 } et scale : 50 (à ajuster selon votre besoin)
+
 
 // === Fonction du Jeu en Run ===
 function gameRun(){
   // Mise à jour du monde physique
   world.step(timeStep);
+  if(kart_2) kart_2.visible = false;
+  if(kart_3) kart_3.visible = false;
   //const delta = clock.getDelta();
   //if (mixer) mixer.update(delta);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1165,14 +1374,22 @@ function gameRun(){
   // Mise à jour de la caméra
   updateCamera(boxMesh, camera, level_cube);
   //updateVehicleCoordinates()
+
+  // Mise à jour de la voiture IA
+  // Mise à jour de toutes les IA
+  aiVehicles.forEach(ai => {
+    updateAIVehicle(ai, timeStep);
+  });
 }
 
 // === Fonction du Jeu en Run ===
 function gameRun_2(){
   // Mise à jour du monde physique
+  if(kart_2) kart_2.visible = true;
+  if(kart_3) kart_3.visible = false;
   world.step(timeStep);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d);
-  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m);
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1215,6 +1432,61 @@ function gameRun_2(){
 }
 
 // === Fonction du Jeu en Run ===
+function gameRun_3(){
+  if(kart_2) kart_2.visible = true;
+  if(kart_3) kart_3.visible = true;
+  // Mise à jour du monde physique
+  world.step(timeStep);
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+  updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+  // Synchronisation du mesh de la boîte avec son corps physique
+  boxMesh.position.copy(boxBody.position);
+  boxMesh.quaternion.copy(boxBody.quaternion);
+  boxMesh_2.position.copy(boxBody_2.position);
+  boxMesh_2.quaternion.copy(boxBody_2.quaternion);
+  boxMesh_3.position.copy(boxBody_3.position);
+  boxMesh_3.quaternion.copy(boxBody_3.quaternion);
+  
+  // Le kart suit la boîte (position et rotation)
+  if (kart) {
+    const localOffset = new THREE.Vector3(0, 0, -5);
+    localOffset.applyQuaternion(boxMesh.quaternion);
+    kart.position.copy(boxMesh.position).add(localOffset);
+    kart.quaternion.copy(boxMesh.quaternion);
+  }
+  if (kart_2) {
+    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    localOffset_2.applyQuaternion(boxMesh_2.quaternion);
+    kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
+    kart_2.quaternion.copy(boxMesh_2.quaternion);
+  }
+
+  if (kart_3) {
+    const localOffset_3 = new THREE.Vector3(0, 0, -5);
+    localOffset_3.applyQuaternion(boxMesh_3.quaternion);
+    kart_3.position.copy(boxMesh_3.position).add(localOffset_3);
+    kart_3.quaternion.copy(boxMesh_3.quaternion);
+  }
+  
+  // Synchronisation du sol
+  groundMesh.position.copy(groundBody.position);
+  groundMesh.quaternion.copy(groundBody.quaternion);
+
+  // Mise à jour des cubes
+  cubesList.forEach(cube => {
+    cube.mesh.position.copy(cube.body.position);
+    cube.mesh.quaternion.copy(cube.body.quaternion);
+  });
+  
+  // Mise à jour de la caméra
+  updateCamera(boxMesh, camera, level_cube);
+  updateCamera(boxMesh_2, camera_2, level_cube);
+  updateCamera(boxMesh_3, camera_3, level_cube);
+  //updateVehicleCoordinates()
+}
+
+// === Fonction du Jeu en Run ===
 function gameRunDev(){
   // Mise à jour du monde physique
   world.step(timeStep);
@@ -1248,10 +1520,9 @@ function particulesSelectMenu(){
 }
 
 
-function select_menu(){
+function select_menu(delta){
   
   // Mise à jour du temps écoulé
-  const delta = clock.getDelta();
   rotatePerso(perso_1);
   // Transition fluide de la caméra
   if (isTransitioning) {
@@ -1300,60 +1571,56 @@ function select_menu(){
 //
 //====================================================================================================
 
-/****************************************
- * 1) Paramètres de base
- * 
- * ,
-  {
-    name: "vitesse",
-    image: "Image/mario_2.png",
-    fitByHeight: false,
-    size: 1.5,  // facteur d'échelle pour la taille d'origine
-    x: 1000,
-    y: 0,
-    z: 0,
-    selection: false
-  },
-  {
-    name: "personnage",
-    image: "Image/mario_2.png",
-    fitByHeight: false,
-    size: 0.8,  // un peu plus petit que sa taille d'origine
-    x: -500,
-    y: 200,
-    z: 0,
-    selection: true
-  },
-  {
-    name: "kart",
-    image: "Image/mario_2.png",
-    fitByHeight: true,
-    x: 1200,
-    y: 400,
-    z: 0,
-    selection: false
-  },
-  {
-    name: "course",
-    image: "Image/mario_2.png",
-    fitByHeight: false,
-    // size non défini => 1 par défaut
-    x: 3000,
-    y: -300,
-    z: 0,
-    selection: true
-  },
-  {
-    name: "go",
-    image: "Image/mario_2.png",
-    fitByHeight: false,
-    size: 2.0, // plus grand que l'original
-    x: -2000,
-    y: 500,
-    z: 0,
-    selection: true
-  }
- ****************************************/
+
+// === Chargement du modèle de la voiture (kart) ===
+let perso_1;
+loader.load('3D_Model/mario_arma.glb', (gltf) => {
+  perso_1 = gltf.scene;
+  perso_1.name = "perso";
+  
+  // Échelle de référence
+  const baseScale = 5;
+  
+  // --- 1) On stocke la position de référence dans userData ---
+  perso_1.userData.refPos = { x: 1280, y: 0.9 * 551 };
+  perso_1.userData.refScale = baseScale;
+  
+  // --- 2) On calcule les ratios actuels ---
+  const { ratioW, ratioH } = getScaleRatios();
+  // Souvent, on prend un ratio “minimum” ou “maximum” pour l’échelle 3D.
+  const ratioMin = Math.min(ratioW, ratioH);
+  
+  // --- 3) Positionner le modèle en tenant compte des ratios ---
+  const scaledX = perso_1.userData.refPos.x * ratioW;
+  const scaledY = perso_1.userData.refPos.y * ratioH;
+  perso_1.position.set(scaledX, scaledY, 0);
+  
+  // --- 4) Ajuster la taille (scale) du modèle si besoin ---
+  perso_1.scale.set(baseScale * ratioMin, baseScale * ratioMin, baseScale * ratioMin);
+  
+  // --- 5) Orientations, matériaux, etc. ---
+  perso_1.rotation.x = Math.PI / 10;
+  perso_1.traverse((child) => {
+    if (child.isMesh) {
+      child.frustumCulled = false;
+      // Remplacer le matériau PBR par un MeshBasicMaterial
+      const oldMat = child.material;
+      let map = oldMat.map || null;
+      child.material = new THREE.MeshBasicMaterial({
+        map: map,
+        color: oldMat.color || 0xffffff,
+        side: THREE.DoubleSide,
+      });
+    }
+  });
+
+  scene_select.add(perso_1);
+});
+
+function rotatePerso(perso){
+  if(perso) perso.rotation.y += 0.02;
+}
+
 const nb_menu_select = 5;  // Nombre de positions pour la navigation Espace/Shift+Espace
 
 // Liste des plans (images) à afficher
@@ -1520,6 +1787,7 @@ function onWindowResize() {
   camera_select.aspect = window.innerWidth / window.innerHeight;
   camera_select.updateProjectionMatrix();
   updateCameraZ();
+  selection_travel(menu_name);
   console.log(camera_select.position.z);
   // Met à jour la taille du renderer
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1534,8 +1802,9 @@ function onWindowResize() {
       // Repositionnement
       const newX = plansList[planData.index].x * ratioW;
       const newY = plansList[planData.index].y * ratioH;
-      if(child.name === "retour") child.position.set(newX + camera_select.position.x, newY + camera_select.position.y, child.position.z);
-      else child.position.set(newX, newY, child.position.z);
+      if(child.name === "retour") 
+        {child.position.set(newX + camera_select.position.x, newY + camera_select.position.y, child.position.z);}
+      else {child.position.set(newX, newY, child.position.z);}
 
       // Mise à jour de la géométrie
       child.geometry.dispose();
@@ -1583,33 +1852,11 @@ function updateCameraZ() {
   const ratioW = window.innerWidth / REF_WIDTH;
   const ratioH = window.innerHeight / REF_HEIGHT;
   const ratioMax = Math.max(ratioW, ratioH);
-  selection_travel(menu_name);
   // Plus la fenêtre est grande, plus ratioMax > 1, plus on s’éloigne.
   camera_select.position.z = REF_CAMZ * ratioMax;
 }
 
 updateCameraZ();
-
-/****************************************
- * 5) Navigation au clavier (Espace / Shift+Espace)
- ****************************************/
-// document.addEventListener("keydown", (event) => {
-//   if (event.code === "Space") {
-//     if (event.shiftKey) {
-//       selection_var = "précédent";
-//       planIndex = (planIndex - 1 + nb_menu_select) % nb_menu_select;
-//     } else {
-//       selection_var = "suivant";
-//       planIndex = (planIndex + 1) % nb_menu_select;
-//     }
-
-//     // Préparation de la transition : la caméra va vers (x, y) du planIndex
-//     transitionStart.copy(camera_select.position);
-//     transitionTarget.set(window.innerWidth * planIndex, 0, camera_select.position.z);
-//     transitionElapsed = 0;
-//     isTransitioning = true;
-//   }
-// });
 
 /****************************************
  * 6) Survol de la souris & clic
@@ -1747,18 +1994,21 @@ function createSelectionLabel() {
  ****************************************/
 function selection_travel(imageName) {
   // Exemple de logique conditionnelle :
+  //var { ratioW, ratioH } = getScaleRatios();
+  var ratioW = window.innerWidth;
+  var ratioH = window.innerHeight;
   if (imageName === "home") {
     console.log("home");
     menu_name = "home";
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 0, camera_select.position.z);
+    transitionTarget.set(ratioW * 0, ratioH * 0, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
   } else if (imageName === "solo") {
     
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 1, camera_select.position.z);
+    transitionTarget.set(ratioW * 0, ratioH * 1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
     menu_name = "solo";
@@ -1768,7 +2018,7 @@ function selection_travel(imageName) {
     menu_name = "multi";
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(window.innerWidth * 0, window.innerHeight * -1, camera_select.position.z);
+    transitionTarget.set(ratioW * 0, ratioH * -1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
   } 
@@ -1777,7 +2027,7 @@ function selection_travel(imageName) {
     menu_name = "config";
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(window.innerWidth * 0, window.innerHeight * 2, camera_select.position.z);
+    transitionTarget.set(ratioW * 0, ratioH * 2, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
   }
@@ -1786,12 +2036,12 @@ function selection_travel(imageName) {
     if(menu_name === "multi"){menu_name = "nb_multi";}
     console.log(imageName);
     if(imageName === "50cc") level_cube = 1;
-    if(imageName === "100cc") level_cube = 2;
-    if(imageName === "150cc") level_cube = 3;
-    if(imageName === "200cc") level_cube = 4;
+    if(imageName === "100cc") level_cube = 1.5;
+    if(imageName === "150cc") level_cube = 2;
+    if(imageName === "200cc") level_cube = 2.5;
     // Préparation de la transition : la caméra va vers (x, y)
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(window.innerWidth * 1, camera_select.position.y, camera_select.position.z);
+    transitionTarget.set(ratioW * 1, menu_name == "perso_solo" ? ratioH * 1 : ratioH * -1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
   }
@@ -1806,25 +2056,253 @@ function selection_travel(imageName) {
   }
 }
 
-function theUpdateGame(){
-  const deltaTime = clock.getDelta();
-  updateCameraZ();
+function theUpdateGame(deltaTime){
   updateDriftParticles(deltaTime);
   boostUpdate(deltaTime);
 }
 
+// =============================================================================
+//
+//            =================== IA ==========================
+//
+// =============================================================================
+
+// Création de la voiture IA
+function createAIVehicle(modelPath, startPos, scale) {
+  const ai = {};
+
+  // Création du corps physique
+  ai.body = new CANNON.Body({
+    mass: 200,
+    shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5)),
+    position: new CANNON.Vec3(startPos.x, startPos.y, startPos.z)
+  });
+  ai.body.fixedRotation = true;
+  ai.body.updateMassProperties();
+  world.addBody(ai.body);
+
+  // Création d'un mesh de debug (boîte rouge)
+  ai.mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(17, 5, 25),
+    new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true , visible:false})
+  );
+  ai.mesh.position.set(startPos.x, startPos.y, startPos.z);
+  scene.add(ai.mesh);
+
+  // Création d'un groupe pour le modèle visuel, qui permettra de conserver l'offset et la rotation
+  ai.visualGroup = new THREE.Group();
+  // Position initiale identique au corps physique
+  ai.visualGroup.position.set(startPos.x, startPos.y, startPos.z);
+  scene.add(ai.visualGroup);
+
+  // Chargement du modèle 3D du kart
+  loader.load(modelPath, (gltf) => {
+    ai.model = gltf.scene;
+    ai.model.scale.set(scale, scale, scale);
+    // Appliquer l'offset et la rotation de correction au niveau du modèle (localement dans le groupe)
+    ai.model.position.set(0, -4, 0); // décale vers le bas de 4 unités
+    ai.model.rotation.y = Math.PI;    // fait pivoter de 180° autour de Y
+    ai.visualGroup.add(ai.model);
+  }, undefined, console.error);
+
+  // Variables d'état de l'IA...
+  ai.started = false;
+  ai.startDelay = 5;
+  ai.elapsedTime = 0;
+  ai.checkpoints = ["step_1", "step_2", "step_3", "step_4"];
+  ai.tasksCompleted = {};
+  ai.checkpoints.forEach(cp => { ai.tasksCompleted[cp] = false; });
+  ai.finished = false;
+
+  return ai;
+}
+
+
+// Fonction utilitaire pour détecter un obstacle devant l’IA
+function checkObstacleAhead(ai, distanceThreshold) {
+  const forward = new THREE.Vector3(0, 0, -1)
+    .applyQuaternion(ai.mesh.quaternion)
+    .setY(0)
+    .normalize();
+  const aiPos = ai.mesh.position.clone();
+  for (let cube of cubesList) {
+    const toCube = cube.mesh.position.clone().sub(aiPos);
+    if (toCube.length() < distanceThreshold) {
+      // Si l'obstacle est dans un cône d'environ 45° devant
+      if (forward.dot(toCube.normalize()) > 0.7) {
+        return cube;
+      }
+    }
+  }
+  return null;
+}
+
+// Fonction d'évaluation de la surface de test sur une distance donnée
+function evaluateTestSurface(ai, direction, maxDistance = 150, step = 10) {
+  let score = 0;
+  const samples = Math.floor(maxDistance / step);
+  for (let i = 1; i <= samples; i++) {
+    const d = i * step;
+    const samplePos = ai.mesh.position.clone().add(direction.clone().multiplyScalar(d));
+    if (isCarOnTerrain("road", { position: samplePos })) {
+      score++;
+    }
+  }
+  return score;
+}
+
+function updateAIVehicle(ai, deltaTime) {
+  // Délai de démarrage de 5 s
+  if (!ai.started) {
+    ai.elapsedTime += deltaTime;
+    if (ai.elapsedTime >= ai.startDelay) {
+      ai.started = true;
+    } else {
+      return;
+    }
+  }
+  if (ai.finished) {
+    ai.body.velocity.set(0, 0, 0);
+    ai.body.angularVelocity.set(0, 0, 0);
+    return;
+  }
+  
+  // Définir l'axe "avant" (axe local -Z)
+  const forward = new THREE.Vector3(0, 0, -1)
+    .applyQuaternion(ai.mesh.quaternion)
+    .setY(0)
+    .normalize();
+  
+  // Distance de capteur pour la vérification : 150 unités
+  const sensorDistance = 200;
+  
+  // Vecteurs latéraux par rapport à forward
+  const leftVector = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
+  const rightVector = leftVector.clone().negate();
+  
+  // Par défaut, le kart souhaite avancer tout droit
+  let targetDir = forward.clone();
+  
+  // On évalue la couverture du road sur une surface de test dans la direction forward
+  const forwardScore = evaluateTestSurface(ai, forward, sensorDistance, 10);
+  const maxSamples = sensorDistance / 10; // par exemple 15 samples si step = 10 et sensorDistance = 150
+  
+  // Si la couverture du road devant est insuffisante, on regarde les côtés
+  if (forwardScore < 0.7 * maxSamples) { // seuil de 70%
+    const leftScore = evaluateTestSurface(ai, leftVector, sensorDistance, 10);
+    const rightScore = evaluateTestSurface(ai, rightVector, sensorDistance, 10);
+    if (leftScore > rightScore) {
+      targetDir.add(leftVector.clone().multiplyScalar(0.5));
+    } else {
+      targetDir.add(rightVector.clone().multiplyScalar(0.5));
+    }
+  } else {
+    // Sinon, on vérifie que le kart ne s'approche pas trop des bords
+    const leftSample = ai.mesh.position.clone().add(leftVector.clone().multiplyScalar(sensorDistance));
+    const rightSample = ai.mesh.position.clone().add(rightVector.clone().multiplyScalar(sensorDistance));
+    if (!isCarOnTerrain("road", { position: leftSample })) {
+      targetDir.add(rightVector.clone().multiplyScalar(0.4));
+    }
+    if (!isCarOnTerrain("road", { position: rightSample })) {
+      targetDir.add(leftVector.clone().multiplyScalar(0.4));
+    }
+  }
+  
+  // Vérification d'obstacles sur 150 unités devant
+  const obstacle = checkObstacleAhead(ai, sensorDistance);
+  if (obstacle) {
+    const toObs = obstacle.mesh.position.clone().sub(ai.mesh.position).setY(0);
+    if (forward.dot(toObs.normalize()) > 0.9) { // obstacle quasiment en face
+      if (leftVector.dot(toObs) > 0) {
+        targetDir.add(rightVector.clone().multiplyScalar(0.8));
+      } else {
+        targetDir.add(leftVector.clone().multiplyScalar(0.8));
+      }
+    } else {
+      targetDir.sub(toObs.normalize().multiplyScalar(0.8));
+    }
+  }
+  
+  // Ajout de la répulsion inter-IA : pour chaque autre IA, si trop proche (<150 unités), on ajoute une force repulsive
+  // On suppose que aiVehicles est un tableau global contenant toutes les IA
+  if (typeof aiVehicles !== "undefined") {
+    aiVehicles.forEach(other => {
+      if (other !== ai && !other.finished) {
+        const diff = ai.mesh.position.clone().sub(other.mesh.position);
+        const dist = diff.length();
+        if (dist < 100 && dist > 0) {
+          // La force repulsive peut être proportionnelle à (100 - dist)
+          const repulsion = diff.normalize().multiplyScalar((100 - dist) / 100);
+          // On ajoute cette composante à la direction cible avec un facteur de pondération
+          targetDir.add(repulsion.multiplyScalar(0.5));
+        }
+      }
+    });
+  }
+  
+  targetDir.normalize();
+  
+  // Calcul de la différence d'angle entre forward et targetDir
+  let angleDiff = forward.angleTo(targetDir);
+  const cross = new THREE.Vector3().crossVectors(forward, targetDir);
+  const sign = (cross.y >= 0 ? 1 : -1);
+  
+  // Si le score en avant est faible, limiter la rotation (virage trop serré)
+  let angularMultiplier = 0.9;
+  if (forwardScore < 0.7 * maxSamples) {
+    angularMultiplier = 0.5; // moins agressif si le road devant est pauvre
+  }
+  const desiredAngular = sign * angularMultiplier * level_cube * angleDiff;
+  const smoothing = 0.1; // interpolation pour rotation douce
+  ai.body.angularVelocity.y = THREE.MathUtils.lerp(ai.body.angularVelocity.y, desiredAngular, smoothing);
+  
+  // Application de la vitesse dans la direction targetDir
+  const baseSpeed = 125 * level_cube * updateCarSpeed(ai.mesh);
+  ai.body.velocity.x = targetDir.x * baseSpeed;
+  ai.body.velocity.z = targetDir.z * baseSpeed;
+  
+  // Synchronisation du mesh de debug et du groupe visuel avec le corps physique
+  ai.mesh.position.copy(ai.body.position);
+  ai.mesh.quaternion.copy(ai.body.quaternion);
+  
+  ai.visualGroup.position.copy(ai.body.position);
+  ai.visualGroup.quaternion.copy(ai.body.quaternion);
+  
+  // Vérification des checkpoints (steps)
+  const nextIndex = ai.checkpoints.findIndex(cp => !ai.tasksCompleted[cp]);
+  if (nextIndex !== -1) {
+    const cpName = ai.checkpoints[nextIndex];
+    const cpSensor = ai.mesh.position.clone().add(forward.clone().multiplyScalar(sensorDistance));
+    if (isCarOnTerrain(cpName, { position: cpSensor })) {
+      ai.tasksCompleted[cpName] = true;
+      console.log("Step", cpName, "validé");
+    }
+  }
+  if (ai.checkpoints.every(cp => ai.tasksCompleted[cp])) {
+    console.log("Tour terminé par l'IA");
+    ai.finished = true;
+  }
+}
+
+// =============================================================================
+//
+//            ================= FIN IA ========================
+//
+// =============================================================================
 
 // === Boucle d'animation ===
 const timeStep = 1 / 60;
 const clock = new THREE.Clock();
 function animate() {
+  const deltaTime = clock.getDelta(); // temps écoulé depuis la dernière frame (en secondes)
   requestAnimationFrame(animate);
   commandeInterpretor();
+  updateVehicleCoordinates();
   
   if(statusWolrd === "select"){
     particulesSelectMenu();
     grossissmentPerso();
-    select_menu();
+    select_menu(deltaTime);
     //animateCameraSelect();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
@@ -1832,7 +2310,7 @@ function animate() {
     renderer.render(scene_select, camera_select);
   }
   else if (statusWolrd === "runsolo") {
-    theUpdateGame();
+    theUpdateGame(deltaTime);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
@@ -1860,7 +2338,7 @@ function animate() {
     renderer.render(scene, camera);
   }
   else if (statusWolrd === "runsplit") {
-
+    theUpdateGame(deltaTime);
     camera.aspect = window.innerWidth/2 / window.innerHeight;
     camera.updateProjectionMatrix();
 
@@ -1883,17 +2361,21 @@ function animate() {
    
   }
   else if (statusWolrd === "runsplit3") {
+    theUpdateGame(deltaTime);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
     camera_2.aspect = window.innerWidth / window.innerHeight;
     camera_2.updateProjectionMatrix();
 
+    camera_3.aspect = window.innerWidth / window.innerHeight;
+    camera_3.updateProjectionMatrix();
+
     // Taille du renderer et activation du scissor test
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setScissorTest(true);
 
-    gameRun_2(); // Run the game
+    gameRun_3(); // Run the game
 
     // ---------------------
     // Quadrant supérieur gauche : scene1 et camera1
@@ -1905,13 +2387,13 @@ function animate() {
     // Quadrant supérieur droit : scene1 et camera2
     renderer.setViewport(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera);
+    renderer.render(scene, camera_2);
 
     // ---------------------
     // Quadrant inférieur gauche : scene1 et camera3
     renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera_2);
+    renderer.render(scene, camera_3);
 
     // ---------------------
     // Quadrant inférieur droit : scene1 et camera4
@@ -1921,6 +2403,7 @@ function animate() {
    
   }
   else if (statusWolrd === "runsplit4") {
+    theUpdateGame(deltaTime);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
@@ -1931,7 +2414,7 @@ function animate() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setScissorTest(true);
 
-    gameRun_2(); // Run the game
+    gameRun_3(); // Run the game
 
     // ---------------------
     // Quadrant supérieur gauche : scene1 et camera1
@@ -1943,19 +2426,19 @@ function animate() {
     // Quadrant supérieur droit : scene1 et camera2
     renderer.setViewport(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(window.innerWidth / 2, window.innerHeight / 2, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera);
+    renderer.render(scene, camera_2);
 
     // ---------------------
     // Quadrant inférieur gauche : scene1 et camera3
     renderer.setViewport(0, 0, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(0, 0, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera_2);
+    renderer.render(scene, camera_3);
 
     // ---------------------
     // Quadrant inférieur droit : scene1 et camera4
     renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera_2);
+    renderer.render(scene, camera_map);
    
   }
   
