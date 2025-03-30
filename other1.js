@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
-var statusWolrd = "runsolo";
+var statusWolrd = "select";
 var courseState = "start"
 var level_cube = 1;
 var nbTour = 1;
@@ -1526,6 +1526,7 @@ function select_menu(delta){
   
   // Mise à jour du temps écoulé
   rotatePerso(perso_1);
+  rotatePerso(perso_2);
   // Transition fluide de la caméra
   if (isTransitioning) {
     transitionElapsed += delta;
@@ -1579,6 +1580,7 @@ let perso_1;
 loader.load('3D_Model/mario_arma.glb', (gltf) => {
   perso_1 = gltf.scene;
   perso_1.name = "perso";
+  perso_1.spec = 1;
   
   // Échelle de référence
   const baseScale = 5;
@@ -1617,6 +1619,51 @@ loader.load('3D_Model/mario_arma.glb', (gltf) => {
   });
 
   scene_select.add(perso_1);
+});
+
+let perso_2;
+loader.load('3D_Model/car_5.glb', (gltf) => {
+  perso_2 = gltf.scene;
+  perso_2.name = "perso";
+  perso_2.spec = 2;
+  
+  // Échelle de référence
+  const baseScale = 100;
+  
+  // --- 1) On stocke la position de référence dans userData ---
+  perso_2.userData.refPos = { x: 1080, y: 0.9 * 551 };
+  perso_2.userData.refScale = baseScale;
+  
+  // --- 2) On calcule les ratios actuels ---
+  const { ratioW, ratioH } = getScaleRatios();
+  // Souvent, on prend un ratio “minimum” ou “maximum” pour l’échelle 3D.
+  const ratioMin = Math.min(ratioW, ratioH);
+  
+  // --- 3) Positionner le modèle en tenant compte des ratios ---
+  const scaledX = perso_2.userData.refPos.x * ratioW;
+  const scaledY = perso_2.userData.refPos.y * ratioH;
+  perso_2.position.set(scaledX, scaledY, 0);
+  
+  // --- 4) Ajuster la taille (scale) du modèle si besoin ---
+  perso_2.scale.set(baseScale * ratioMin, baseScale * ratioMin, baseScale * ratioMin);
+  
+  // --- 5) Orientations, matériaux, etc. ---
+  perso_2.rotation.x = Math.PI / 10;
+  perso_2.traverse((child) => {
+    if (child.isMesh) {
+      child.frustumCulled = false;
+      // Remplacer le matériau PBR par un MeshBasicMaterial
+      const oldMat = child.material;
+      let map = oldMat.map || null;
+      child.material = new THREE.MeshBasicMaterial({
+        map: map,
+        color: oldMat.color || 0xffffff,
+        side: THREE.DoubleSide,
+      });
+    }
+  });
+
+  scene_select.add(perso_2);
 });
 
 function rotatePerso(perso){
@@ -1821,11 +1868,9 @@ function onWindowResize() {
       child.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
     }
   });
-
   // Recalculer la position/échelle du kart (si déjà chargé)
   if (perso_1) {
-    const { ratioW, ratioH } = getScaleRatios();
-    const ratioMin = Math.min(ratioW, ratioH);
+    
     
     // On reprend les coordonnées de référence stockées
     const refX = perso_1.userData.refPos.x;
@@ -1837,6 +1882,20 @@ function onWindowResize() {
     
     // Mise à jour de l'échelle
     perso_1.scale.set(refScale * ratioMin, refScale * ratioMin, refScale * ratioMin);
+  }
+
+  if (perso_2) {
+
+    // On reprend les coordonnées de référence stockées
+    const refX = perso_2.userData.refPos.x;
+    const refY = perso_2.userData.refPos.y;
+    const refScale = perso_2.userData.refScale;
+    
+    // Mise à jour de la position
+    perso_2.position.set(refX * ratioW, refY * ratioH, 0);
+    
+    // Mise à jour de l'échelle
+    perso_2.scale.set(refScale * ratioMin, refScale * ratioMin, refScale * ratioMin);
   }
 }
 
@@ -1864,7 +1923,7 @@ updateCameraZ();
  * 6) Survol de la souris & clic
  ****************************************/
 document.addEventListener("mousemove", onMouseMove);
-document.addEventListener("click", onMouseClick);
+document.addEventListener("click", (ev) => onMouseClick(ev,0));
 const hoveredPersos = new Set(); // contient les objets "perso" actuellement survolés
 
 function onMouseMove(event) {
@@ -1910,8 +1969,13 @@ function grossissmentPerso(){
   // Animation smooth des objets "perso"
   scene_select.traverse((obj) => {
     if (obj.name === "perso") {
-      const targetScale = hoveredPersos.has(obj) ? 7 : 5;
-
+      var targetScale = hoveredPersos.has(obj) ? 7 : 5;
+      if(obj.spec == 1){
+        var targetScale = hoveredPersos.has(obj) ? 7 : 5;
+      }
+      if(obj.spec == 2){
+        var targetScale = hoveredPersos.has(obj) ? 700 : 500;
+      } 
       // Lerp progressif vers l’échelle cible
       obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
       obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
@@ -1921,9 +1985,11 @@ function grossissmentPerso(){
 }
 
 var menu_name = "home";
-const selection_perso = new Set(); // stocke les objets sélectionnés
+// Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
+const maxCameras = 2;
+const selection_perso = new Array(maxCameras).fill(null);
 
-function onMouseClick(event) {
+function onMouseClick(event, camIndex) {
   // Même logique de raycaster
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -1941,31 +2007,43 @@ function onMouseClick(event) {
   if (intersects.length > 0) {
     const clicked = intersects[0].object;
 
-    // Trouver l'objet parent nommé "perso"
+    // Recherche du parent dont le nom est "perso"
     let perso = clicked;
     while (perso && perso.name !== "perso") {
       perso = perso.parent;
     }
 
     if (perso && perso.name === "perso") {
-      if (selection_perso.has(perso)) {
-        // Si déjà sélectionné → on désélectionne
-        selection_perso.delete(perso);
-
+      // Vérifier si ce perso est déjà sélectionné pour la caméra actuelle
+      if (selection_perso[camIndex] === perso) {
+        // Dé-sélection : on retire le perso pour cette caméra
+        selection_perso[camIndex] = null;
         const label = perso.getObjectByName("selection_label");
         if (label) perso.remove(label);
       } else {
-        // Sinon → on sélectionne
-        selection_perso.add(perso);
-
+        // S'il existe déjà une sélection pour cette caméra, on la dé-sélectionne d'abord
+        if (selection_perso[camIndex]) {
+          const oldPerso = selection_perso[camIndex];
+          const oldLabel = oldPerso.getObjectByName("selection_label");
+          if (oldLabel) oldPerso.remove(oldLabel);
+        }
+        // On ajoute le nouveau perso pour cette caméra
+        selection_perso[camIndex] = perso;
         const label = createSelectionLabel();
         label.name = "selection_label";
-        label.position.set(0, 20, 0); // au-dessus du perso
+        if(perso.spec == 1){
+          label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+        }
+        if(perso.spec == 2){
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        } 
         perso.add(label);
       }
     }
   }
 }
+
 
 function createSelectionLabel() {
   const canvas = document.createElement("canvas");
@@ -2065,7 +2143,7 @@ function theUpdateGame(deltaTime){
 
 // =============================================================================
 //
-//            =================== IA ==========================
+//            =================== AI ==========================
 //
 // =============================================================================
 
@@ -2401,7 +2479,7 @@ function updateAIVehicle(ai, deltaTime) {
 
 // =============================================================================
 //
-//            ================= FIN IA ========================
+//            ================= FIN AI ========================
 //
 // =============================================================================
 
