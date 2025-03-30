@@ -1618,8 +1618,20 @@ loader.load('3D_Model/mario_arma.glb', (gltf) => {
     }
   });
 
+  const label = createSelectionLabel();
+  label.name = "selection_label";
+  label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+  perso_1.add(label);
+
   scene_select.add(perso_1);
 });
+// Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
+const maxCameras = 2;
+const selection_perso = new Array(maxCameras).fill(null);
+
+// On ajoute le nouveau perso pour cette caméra
+selection_perso[0] = perso_1;
+
 
 let perso_2;
 loader.load('3D_Model/car_5.glb', (gltf) => {
@@ -1708,6 +1720,10 @@ const plansList = [
 
   {name: "ok_solo_tour",image: "Image/ok_unselect.png", image_select:"Image/ok_select.png",
     fitByHeight: false,size: 0.5, x: 2560,y: 351,z: 0,selection: true},
+
+  {name: "tour_1",image: "Image/tour_1.png", fitByHeight: false,size: 0.2, x: 2260,y: 551,z: 0,selection: false},
+  {name: "tour_2",image: "Image/tour_2.png", fitByHeight: false,size: 0.2, x: 2560,y: 551,z: 0,selection: false},
+  {name: "tour_3",image: "Image/tour_3.png", fitByHeight: false,size: 0.2, x: 2860,y: 551,z: 0,selection: false},
 ];
 
 // Indice du plan actuel pour la navigation
@@ -1991,9 +2007,8 @@ function grossissmentPerso(){
 }
 
 var menu_name = "home";
-// Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
-const maxCameras = 2;
-const selection_perso = new Array(maxCameras).fill(null);
+
+
 
 function onMouseClick(event, camIndex) {
   // Même logique de raycaster
@@ -2049,6 +2064,8 @@ function onMouseClick(event, camIndex) {
     }
   }
 }
+
+
 
 
 function createSelectionLabel() {
