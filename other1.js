@@ -183,7 +183,7 @@ dirLight_2.castShadow = true;
 scene_select.add(dirLight_2);
 
 // Background
-scene.background = new THREE.TextureLoader().load('smoky-watercolor-cloud-background.jpg');
+scene.background = new THREE.TextureLoader().load('Image/smoky-watercolor-cloud-background.jpg');
 
 // === Monde physique ===
 const world = new CANNON.World({
