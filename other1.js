@@ -1702,6 +1702,12 @@ const plansList = [
 
   {name: "retour",image: "Image/retour_unselect.png", image_select:"Image/retour_select.png",
     fitByHeight: false,size: 0.3, x: -575,y: -252,z: 0,selection: true},
+
+  {name: "ok_solo_kart",image: "Image/ok_unselect.png", image_select:"Image/ok_select.png",
+    fitByHeight: false,size: 0.5, x: 1280,y: 351,z: 0,selection: true},
+
+  {name: "ok_solo_tour",image: "Image/ok_unselect.png", image_select:"Image/ok_select.png",
+    fitByHeight: false,size: 0.5, x: 2560,y: 351,z: 0,selection: true},
 ];
 
 // Indice du plan actuel pour la navigation
@@ -2111,7 +2117,7 @@ function selection_travel(imageName) {
     transitionElapsed = 0;
     isTransitioning = true;
   }
-  else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc") {
+  else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc" || imageName === "vitesse") {
     if(menu_name === "solo"){menu_name = "perso_solo";}
     if(menu_name === "multi"){menu_name = "nb_multi";}
     console.log(imageName);
@@ -2130,6 +2136,18 @@ function selection_travel(imageName) {
     if(menu_name == "multi" || menu_name == "solo" || menu_name == "config"){selection_travel("home")}
     if(menu_name == "nb_multi"){selection_travel("multi")}
     if(menu_name == "perso_solo"){selection_travel("solo")}
+    if(menu_name == "tour_solo"){
+      menu_name = "perso_solo";
+      selection_travel("vitesse");
+    }
+  }
+  else if(imageName === "ok_solo_kart"){
+    console.log("ok_solo_kart");
+    menu_name = "tour_solo";
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(ratioW * 2, ratioH * 1, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
   }
   else {
     console.log("Action par défaut pour", imageName);
