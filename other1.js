@@ -7,7 +7,9 @@ import * as CANNON from 'cannon-es';
 // Variable pour stocker la valeur du chat
 let chatValue = "";
 var statusWolrd = "runsolo";
+var courseState = "start"
 var level_cube = 1;
+var nbTour = 1;
 var start_place = [
   {x:-2003, z:-505},{x:-1975, z:-465},{x:-1947, z:-425},{x:-1919, z:-385},{x:-1891, z:-345},
   {x:-1863, z:-305},{x:-1989, z:-270},{x:-1961, z:-230},{x:-1933, z:-190},{x:-1905, z:-150},
@@ -2067,6 +2069,38 @@ function theUpdateGame(deltaTime){
 //
 // =============================================================================
 
+// Fonction modifiée pour spawn de particules pour l'IA (on accepte un paramètre particleColor)
+function spawnDriftParticleIa(carMesh, direction, particleColor) {
+  // Calcul d'un offset de base
+  const offset = new THREE.Vector3();
+  if (direction === 'left') {
+    offset.set(1, 0, -3);
+  } else { // direction "right"
+    offset.set(-1, 0, -3);
+  }
+  // Appliquer la rotation du kart à l'offset
+  offset.applyQuaternion(carMesh.quaternion);
+  // Ajouter une variation aléatoire pour plus d'effet
+  offset.x += (Math.random() - 0.5) * 2;
+  offset.y += (Math.random() - 0.5) * 2;
+  offset.z += (Math.random() - 0.5) * 2;
+  
+  const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
+  const geometry = new THREE.SphereGeometry(0.3, 8, 8);
+  const material = new THREE.MeshBasicMaterial({
+    color: particleColor, 
+    transparent: true,
+    opacity: 1,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const particle = new THREE.Mesh(geometry, material);
+  particle.position.copy(spawnPos);
+  particle.userData = { lifetime: 0 };
+  scene.add(particle);
+  driftParticles.push(particle);
+}
+
 // Création de la voiture IA
 function createAIVehicle(modelPath, startPos, scale) {
   const ai = {};
@@ -2109,10 +2143,13 @@ function createAIVehicle(modelPath, startPos, scale) {
   ai.started = false;
   ai.startDelay = 5;
   ai.elapsedTime = 0;
+  ai.tour = 0;
   ai.checkpoints = ["step_1", "step_2", "step_3", "step_4"];
   ai.tasksCompleted = {};
   ai.checkpoints.forEach(cp => { ai.tasksCompleted[cp] = false; });
+  ai.phantom = false;
   ai.finished = false;
+  ai.wasOnCheckpoint = false;
 
   return ai;
 }
@@ -2151,6 +2188,20 @@ function evaluateTestSurface(ai, direction, maxDistance = 150, step = 10) {
   return score;
 }
 
+function forceKartRotation180(ai) {
+  // Créer une quaternion correspondant à 180° autour de l'axe Y
+  const q180 = new CANNON.Quaternion();
+  q180.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI);
+  
+  // Multiplier la quaternion 180° par la quaternion actuelle du corps physique
+  ai.body.quaternion = q180.multipliedBy(ai.body.quaternion);
+  
+  // Mettez à jour immédiatement les objets visuels pour éviter que la synchronisation ne les écrase
+  ai.mesh.quaternion.copy(ai.body.quaternion);
+  ai.visualGroup.quaternion.copy(ai.body.quaternion);
+}
+
+
 function updateAIVehicle(ai, deltaTime) {
   // Délai de démarrage de 5 s
   if (!ai.started) {
@@ -2161,9 +2212,15 @@ function updateAIVehicle(ai, deltaTime) {
       return;
     }
   }
-  if (ai.finished) {
+  if (ai.finished && !ai.phantom) {
     ai.body.velocity.set(0, 0, 0);
     ai.body.angularVelocity.set(0, 0, 0);
+    ai.model.traverse((child) => {
+      if (child.isMesh) {
+        child.material.transparent = true;
+        child.material.opacity = 0.5;
+      }
+    });
     return;
   }
   
@@ -2173,7 +2230,7 @@ function updateAIVehicle(ai, deltaTime) {
     .setY(0)
     .normalize();
   
-  // Distance de capteur pour la vérification : 150 unités
+  // Distance de capteur pour la vérification : 200 unités
   const sensorDistance = 200;
   
   // Vecteurs latéraux par rapport à forward
@@ -2214,9 +2271,9 @@ function updateAIVehicle(ai, deltaTime) {
     const toObs = obstacle.mesh.position.clone().sub(ai.mesh.position).setY(0);
     if (forward.dot(toObs.normalize()) > 0.9) { // obstacle quasiment en face
       if (leftVector.dot(toObs) > 0) {
-        targetDir.add(rightVector.clone().multiplyScalar(0.8));
+        targetDir.add(rightVector.clone().multiplyScalar(0.4));
       } else {
-        targetDir.add(leftVector.clone().multiplyScalar(0.8));
+        targetDir.add(leftVector.clone().multiplyScalar(0.4));
       }
     } else {
       targetDir.sub(toObs.normalize().multiplyScalar(0.8));
@@ -2234,7 +2291,7 @@ function updateAIVehicle(ai, deltaTime) {
           // La force repulsive peut être proportionnelle à (100 - dist)
           const repulsion = diff.normalize().multiplyScalar((100 - dist) / 100);
           // On ajoute cette composante à la direction cible avec un facteur de pondération
-          targetDir.add(repulsion.multiplyScalar(0.5));
+          targetDir.add(repulsion.multiplyScalar(0.7));
         }
       }
     });
@@ -2252,12 +2309,46 @@ function updateAIVehicle(ai, deltaTime) {
   if (forwardScore < 0.7 * maxSamples) {
     angularMultiplier = 0.5; // moins agressif si le road devant est pauvre
   }
-  const desiredAngular = sign * angularMultiplier * level_cube * angleDiff;
+  let desiredAngular = sign * angularMultiplier * level_cube * angleDiff;
   const smoothing = 0.1; // interpolation pour rotation douce
   ai.body.angularVelocity.y = THREE.MathUtils.lerp(ai.body.angularVelocity.y, desiredAngular, smoothing);
+
+  // --- Gestion du drift ---
+  // On définit un seuil de rotation pour considérer qu'un drift est engagé
+  const driftThreshold = 0.2; // en radians  
+  // Initialiser les timers si non définis
+  if (ai.driftTimer === undefined) ai.driftTimer = 0;
+  if (ai.boostTimer === undefined) ai.boostTimer = 0;
+  if (Math.abs(desiredAngular) > driftThreshold) {
+    ai.driftTimer += deltaTime;
+    // La voiture est en train de tourner suffisamment pour être en drift
+    // Appliquer un multiplicateur de drift : 2 fois plus de rotation
+    if(ai.driftTimer > 0.5){
+      desiredAngular *= 2;
+      // Spawn de particules : bleu si drift < 1.5s, orange sinon
+      let particleColor = (ai.driftTimer < 1.5) ? 0x00aaff : 0xff8800;
+      spawnDriftParticleIa(ai.mesh, sign > 0 ? "left" : "right", particleColor);
+    }
+  } else {
+    // Le drift est terminé
+    if (ai.driftTimer >= 1.5) {
+      // Si le drift a duré plus de 1 sec, activer un boost de vitesse pendant 1 sec
+      ai.boostTimer = 1;
+    }
+    ai.driftTimer = 0;
+  }
+  // Interpolation douce de l'angular velocity
+  ai.body.angularVelocity.y = THREE.MathUtils.lerp(ai.body.angularVelocity.y, desiredAngular, smoothing);
+  // Application de la vitesse
+  let speedMultiplier = 1;
+  if (ai.boostTimer > 0) {
+    speedMultiplier = 2;
+    ai.boostTimer -= deltaTime;
+  }
   
+
   // Application de la vitesse dans la direction targetDir
-  const baseSpeed = 125 * level_cube * updateCarSpeed(ai.mesh);
+  const baseSpeed = 125 * level_cube * updateCarSpeed(ai.mesh) * speedMultiplier;
   ai.body.velocity.x = targetDir.x * baseSpeed;
   ai.body.velocity.z = targetDir.z * baseSpeed;
   
@@ -2267,22 +2358,46 @@ function updateAIVehicle(ai, deltaTime) {
   
   ai.visualGroup.position.copy(ai.body.position);
   ai.visualGroup.quaternion.copy(ai.body.quaternion);
+
   
   // Vérification des checkpoints (steps)
   const nextIndex = ai.checkpoints.findIndex(cp => !ai.tasksCompleted[cp]);
   if (nextIndex !== -1) {
     const cpName = ai.checkpoints[nextIndex];
-    const cpSensor = ai.mesh.position.clone().add(forward.clone().multiplyScalar(sensorDistance));
+    const cpSensor = ai.mesh.position.clone().add(forward.clone().multiplyScalar(2));
     if (isCarOnTerrain(cpName, { position: cpSensor })) {
+      if (ai.wasOnCheckpoint && ai.tasksCompleted[cpName]) {
+        // Le kart était déjà sur le checkpoint, l'a quitté, et le repasse : forcez une rotation de 180°
+        forceKartRotation180(ai);
+      }
+      ai.tasksCompleted[cpName] = true;
+      ai.wasOnCheckpoint = true;
       ai.tasksCompleted[cpName] = true;
       console.log("Step", cpName, "validé");
+    }
+    else {
+      ai.wasOnCheckpoint = false;
     }
   }
   if (ai.checkpoints.every(cp => ai.tasksCompleted[cp])) {
     console.log("Tour terminé par l'IA");
-    ai.finished = true;
+    ai.tour += 1;
+    if(ai.tour >= nbTour){
+      console.log("Course terminé par l'IA");
+      ai.finished = true;
+      ai.phantom = true;
+      ai.model.traverse((child) => {
+        if (child.isMesh) {
+          child.material.transparent = true;
+          child.material.opacity = 0.5;
+        }
+      });
+    }
+    ai.checkpoints.forEach(cp => { ai.tasksCompleted[cp] = false; });
   }
 }
+
+
 
 // =============================================================================
 //
