@@ -79,6 +79,15 @@ const camera_3 = new THREE.PerspectiveCamera(
 );
 camera_3.position.set(0, 150, 300);
 
+// === camera 4 ===
+const camera_4 = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000000
+);
+camera_4.position.set(0, 150, 300);
+
 // === camera map ===
 const camera_map = new THREE.PerspectiveCamera(
   75,
@@ -257,45 +266,65 @@ boxBody.quaternion.setFromEuler(0,-Math.PI, 0);
 boxBody.fixedRotation = true;
 boxBody.updateMassProperties();
 world.addBody(boxBody);
+const kartModelMario = '3D_Model/mario_arma.glb'; // chemin initial
+const kartModelLink = '3D_Model/car_5.glb';    // nouveau chemin après 1 minute
 
 // === Chargement du modèle de la voiture (kart) ===
 let kart;//,mixer;
-loader.load(
-  '3D_Model/car_5.glb',
-  (gltf) => {
-    kart = gltf.scene;
-    kart.scale.set(100, 100, 100);
-    // Position initiale (sera remplacée dans l'animation)
-    kart.position.set(-2000, -20, -500);
-    // Orientation initiale
-    kart.rotation.y = Math.PI;
-    kart.traverse((child) => {
-      if (child.isMesh){
-        child.frustumCulled = false;
-
-        const mat = child.material;
-        if (mat && mat.metalness !== undefined) {
-          mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
-          mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
-          mat.envMapIntensity = 0.5;     // réflexions HDRI modérées
-          mat.toneMapped = true;         // affecté par le tone mapping
-          mat.emissive.set(0x000000);    // pas d’auto-éclairage
+// Fonction générique de chargement d'un modèle de kart
+function loadKartModel(modelPath, onLoaded) {
+  loader.load(
+    modelPath,
+    (gltf) => {
+      const model = gltf.scene;
+      // Appliquer les transformations souhaitées
+      modelPath == kartModelMario ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+      model.position.set(-2000, -20, -500);
+      model.rotation.y = Math.PI;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.frustumCulled = false;
+          const mat = child.material;
+          if (mat && mat.metalness !== undefined) {
+            mat.roughness = 0.8;
+            mat.metalness = 0.0;
+            mat.envMapIntensity = 0.5;
+            mat.toneMapped = true;
+            mat.emissive.set(0x000000);
+          }
         }
-      }
-    });
+      });
+      onLoaded(model);
+    },
+    undefined,
+    console.error
+  );
+}
+
+function updateKartModel(kartModelMode) {
+  let modelPath;
+  if (kartModelMode === 1) {
+    modelPath = kartModelMario; // chemin du modèle initial
+  } else if (kartModelMode === 2) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } else {
+    console.error("Mode de kart non reconnu :", kartModelMode);
+    return;
+  }
+
+  loadKartModel(modelPath, (newModel) => {
+    // Si un ancien kart existe, le retirer de la scène
+    if (kart) {
+      scene.remove(kart);
+    }
+    // Mettre à jour la variable globale et ajouter le nouveau modèle à la scène
+    kart = newModel;
     scene.add(kart);
+  });
+}
 
-    // // Si le modèle contient des animations, on les active via AnimationMixer
-    // if (gltf.animations && gltf.animations.length > 0) {
-    //   mixer = new THREE.AnimationMixer(kart);
-    //   const action = mixer.clipAction(gltf.animations[0]); // on utilise la première animation
-    //   action.play();
-    // }
+updateKartModel(1); // Mets le Kart 1 sur mario
 
-  },
-  undefined,
-  console.error
-);
 
 
 // === 2eme VOITURE ===
@@ -350,6 +379,30 @@ loader.load(
   console.error
 );
 
+function updateKart2Model(kartModelMode) {
+  let modelPath;
+  if (kartModelMode === 1) {
+    modelPath = kartModelMario; // chemin du modèle initial
+  } else if (kartModelMode === 2) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } else {
+    console.error("Mode de kart non reconnu :", kartModelMode);
+    return;
+  }
+
+  loadKartModel(modelPath, (newModel) => {
+    // Si un ancien kart existe, le retirer de la scène
+    if (kart_2) {
+      scene.remove(kart_2);
+    }
+    // Mettre à jour la variable globale et ajouter le nouveau modèle à la scène
+    kart_2 = newModel;
+    scene.add(kart_2);
+  });
+}
+
+updateKart2Model(1);
+
 // === 3eme VOITURE ===
 const boxGeo_3 = new THREE.BoxGeometry(17, 5, 25);
 const boxMat_3 = new THREE.MeshBasicMaterial({
@@ -402,6 +455,111 @@ loader.load(
   console.error
 );
 
+
+
+
+function updateKart3Model(kartModelMode) {
+  let modelPath;
+  if (kartModelMode === 1) {
+    modelPath = kartModelMario; // chemin du modèle initial
+  } else if (kartModelMode === 2) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } else {
+    console.error("Mode de kart non reconnu :", kartModelMode);
+    return;
+  }
+
+  loadKartModel(modelPath, (newModel) => {
+    // Si un ancien kart existe, le retirer de la scène
+    if (kart_3) {
+      scene.remove(kart_3);
+    }
+    // Mettre à jour la variable globale et ajouter le nouveau modèle à la scène
+    kart_3 = newModel;
+    scene.add(kart_3);
+  });
+}
+
+updateKart3Model(1);
+
+// === 4eme VOITURE ===
+const boxGeo_4 = new THREE.BoxGeometry(17, 5, 25);
+const boxMat_4 = new THREE.MeshBasicMaterial({
+  color: 0x00ff00,
+  wireframe: true,
+});
+const boxMesh_4 = new THREE.Mesh(boxGeo_3, boxMat_3);
+boxMesh_4.visible = false;
+boxMesh_4.name = "player_4";
+scene.add(boxMesh_4);
+
+// Corps physique Cannon-es
+const boxBody_4 = new CANNON.Body({
+  mass: 200,
+  shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
+  position: new CANNON.Vec3(start_place[9].x, -20, start_place[9].z)
+});
+boxBody_4.quaternion.setFromEuler(0,-Math.PI, 0);
+boxBody_4.fixedRotation = true;
+boxBody_4.updateMassProperties();
+world.addBody(boxBody_4);
+
+// === Chargement du modèle de la voiture (kart) ===
+let kart_4;
+loader.load(
+  '3D_Model/mario_arma.glb',
+  (gltf) => {
+    kart_4 = gltf.scene;
+    kart_4.scale.set(1, 1, 1);
+    // Position initiale (sera remplacée dans l'animation)
+    kart_4.position.set(-1650, -500, 300);
+    // Orientation initiale
+    kart_4.rotation.y = Math.PI;
+    kart_4.traverse((child) => {
+      if (child.isMesh){
+        child.frustumCulled = false;
+        const mat = child.material;
+        if (mat && mat.metalness !== undefined) {
+          mat.roughness = 0.8;   // plus rugueux = moins de reflets brillants
+          mat.metalness = 0.0;   // zéro métal = moins d'éblouissement
+          mat.envMapIntensity = 0.5;     // réflexions HDRI modérées
+          mat.toneMapped = true;         // affecté par le tone mapping
+          mat.emissive.set(0x000000);    // pas d’auto-éclairage
+        }
+      } 
+    });
+    scene.add(kart_4);
+  },
+  undefined,
+  console.error
+);
+
+
+
+
+function updateKart4Model(kartModelMode) {
+  let modelPath;
+  if (kartModelMode === 1) {
+    modelPath = kartModelMario; // chemin du modèle initial
+  } else if (kartModelMode === 2) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } else {
+    console.error("Mode de kart non reconnu :", kartModelMode);
+    return;
+  }
+
+  loadKartModel(modelPath, (newModel) => {
+    // Si un ancien kart existe, le retirer de la scène
+    if (kart_4) {
+      scene.remove(kart_4);
+    }
+    // Mettre à jour la variable globale et ajouter le nouveau modèle à la scène
+    kart_4 = newModel;
+    scene.add(kart_4);
+  });
+}
+
+updateKart4Model(1);
 
 // === Vitesse voiture ===
 
@@ -626,7 +784,8 @@ function tourUpdate(boxCarMesh){
 
 
 // === Gestion des contrôles clavier (Z, Q, S, D) ===
-const keys = { z: false, s: false, q: false, d: false , o:false, l:false, k:false, m:false, g:false, b:false, v:false, n:false};
+const keys = { z: false, s: false, q: false, d: false , o:false, l:false,
+   k:false, m:false, g:false, b:false, v:false, n:false, arrowleft:false, arrowright:false, arrowup:false, arrowdown:false};
 //window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
 //window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
@@ -666,9 +825,89 @@ var boostMultiplier_3 = 0;
 var gotBoost_3 = false;
 var hadBoost_3 = false;
 
+let lastLeftKeyReleaseTime_4 = 0;
+let lastRightKeyReleaseTime_4 = 0;
+let isDriftingLeft_4 = false;
+let isDriftingRight_4 = false;
+let driftActiveTime_4 = 0;
+let isBoostActive_4 = false;
+let boostTimer_4 = 0;
+var boostMultiplier_4 = 0;
+var gotBoost_4 = false;
+var hadBoost_4 = false;
+
+function playerPosReset(){
+  lastLeftKeyReleaseTime = 0;
+  lastRightKeyReleaseTime = 0;
+  isDriftingLeft = false;
+  isDriftingRight = false;
+  driftActiveTime = 0;
+  isBoostActive = false;
+  boostTimer = 0;
+  boostMultiplier = 0; // facteur d'accélération du boost
+  gotBoost = false;
+  hadBoost = false;
+
+  lastLeftKeyReleaseTime_2 = 0;
+  lastRightKeyReleaseTime_2 = 0;
+  isDriftingLeft_2 = false;
+  isDriftingRight_2 = false;
+  driftActiveTime_2 = 0;
+  isBoostActive_2 = false;
+  boostTimer_2 = 0;
+  boostMultiplier_2 = 0;
+  gotBoost_2 = false;
+  hadBoost_2 = false;
+
+  lastLeftKeyReleaseTime_3 = 0;
+  lastRightKeyReleaseTime_3 = 0;
+  isDriftingLeft_3 = false;
+  isDriftingRight_3 = false;
+  driftActiveTime_3 = 0;
+  isBoostActive_3 = false;
+  boostTimer_3 = 0;
+  boostMultiplier_3 = 0;
+  gotBoost_3 = false;
+  hadBoost_3 = false;
+
+  lastLeftKeyReleaseTime_4 = 0;
+  lastRightKeyReleaseTime_4 = 0;
+  isDriftingLeft_4 = false;
+  isDriftingRight_4 = false;
+  driftActiveTime_4 = 0;
+  isBoostActive_4 = false;
+  boostTimer_4 = 0;
+  boostMultiplier_4 = 0;
+  gotBoost_4 = false;
+  hadBoost_4 = false;
+
+  boxBody.angularVelocity.y = 0;
+  boxBody_2.angularVelocity.y = 0;
+  boxBody_3.angularVelocity.y = 0;
+  boxBody_4.angularVelocity.y = 0;
+
+  boxBody.velocity.x = 0;
+  boxBody_2.velocity.x = 0;
+  boxBody_3.velocity.x = 0;
+  boxBody_4.velocity.x = 0;
+
+  boxBody.velocity.z = 0;
+  boxBody_2.velocity.z = 0;
+  boxBody_3.velocity.z = 0;
+  boxBody_4.velocity.z = 0;
+
+  boxBody.quaternion.setFromEuler(0,-Math.PI, 0);
+  boxBody_2.quaternion.setFromEuler(0,-Math.PI, 0);
+  boxBody_3.quaternion.setFromEuler(0,-Math.PI, 0);
+  boxBody_4.quaternion.setFromEuler(0,-Math.PI, 0);
+
+  
+}
+
 
 
 window.addEventListener('keydown', (e) => {
+  if(statusWolrd == "select")return
   const key = e.key.toLowerCase();
   // player 1
   if (key === 'q') {
@@ -716,12 +955,27 @@ window.addEventListener('keydown', (e) => {
     }
     keys['n'] = true;
   }
+  if (key === 'arrowleft') {
+    const now = Date.now();
+    if (lastRightKeyReleaseTime_4 && (now - lastLeftKeyReleaseTime_4 < doubleTapThreshold)) {
+      isDriftingLeft_4 = true;
+    }
+    keys['arrowleft'] = true;
+  }
+  if (key === 'arrowright') {
+    const now = Date.now();
+    if (lastRightKeyReleaseTime_4 && (now - lastRightKeyReleaseTime_4 < doubleTapThreshold)) {
+      isDriftingRight_4 = true;
+    }
+    keys['arrowright'] = true;
+  }
   else{
     keys[key] = true;
   }
 });
 
 window.addEventListener('keyup', (e) => {
+  if(statusWolrd == "select")return
   const key = e.key.toLowerCase();
   // player 1
   if (key === 'q') {
@@ -755,6 +1009,17 @@ window.addEventListener('keyup', (e) => {
     isDriftingRight_3 = false;
     keys['n'] = false;
   }
+  // player 4
+  if (key === 'arrowleft') {
+    lastLeftKeyReleaseTime_4 = Date.now();
+    isDriftingLeft_4 = false;
+    keys['arrowleft'] = false;
+  }
+  if (key === 'arrowright') {
+    lastRightKeyReleaseTime_4 = Date.now();
+    isDriftingRight_4 = false;
+    keys['arrowright'] = false;
+  }
   else{
     keys[key] = false;
   }
@@ -786,20 +1051,24 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
       boostTimer_3 = boostDuration;
       hadBoost_3 = true;
     }
+    if(player == 4){
+      boostTimer_4 = boostDuration;
+      hadBoost_4 = true;
+    }
   }
   
   let movement = new THREE.Vector3(0, 0, 0);
   
   if (keyMove) {
     let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : boostMultiplier_3));
+    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
     // Multiplie par deltaTime pour obtenir un déplacement en fonction du temps
     movement.add(camDirection.clone().multiplyScalar(currentSpeed * deltaTime*40));
   }
   
   if (keyBack) {
     let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : boostMultiplier_3));
+    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
     movement.add(camDirection.clone().multiplyScalar(-currentSpeed * deltaTime*40));
   }
   
@@ -813,14 +1082,14 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
   
   // Gestion de la rotation/dérapage
   if (keyLeft) {
-    if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3)) {
+    if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3) || (player == 4 && isDriftingLeft_4)) {
       boxCarBody.angularVelocity.y = driftRotationSpeed;
       spawnDriftParticle(boxCarMesh, 'left',player);
     } else {
       boxCarBody.angularVelocity.y = rotationSpeed;
     }
   } else if (keyRight) {
-    if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3)) {
+    if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3) || (player == 4 && isDriftingRight_4)) {
       boxCarBody.angularVelocity.y = -driftRotationSpeed;
       spawnDriftParticle(boxCarMesh, 'right',player);
     } else {
@@ -939,6 +1208,41 @@ function boostUpdate(dlt) {
   else {
     boostMultiplier_3 *= 0.9; // pas de boost
   }
+
+  // PLAYER 4
+
+  if (isDriftingRight_4 || isDriftingLeft_4) {
+    driftActiveTime_4 += deltaTime;
+    if (!isBoostActive_4 && driftActiveTime_4 >= 1) {
+      isBoostActive_4 = true;
+      boostTimer_4 = boostDuration;
+    }
+  } else {
+    // Réinitialisation si aucune touche de drift n'est pressée
+    driftActiveTime_4 = 0;
+    if(isBoostActive_4){
+      gotBoost_4 = true;
+      isBoostActive_4 = false;
+    }else{
+      gotBoost_4 = false;
+      isBoostActive_4 = false;
+    }
+  }
+  
+  // Décrémenter le timer du boost
+  if (gotBoost_4 || hadBoost_4) {
+    boostTimer_4 -= deltaTime;
+    gotBoost_4 = false;
+    hadBoost_4 = true;
+    if (boostTimer_4 <= 0) {
+      hadBoost_4 = false;
+      driftActiveTime_4 = 0;
+    }
+    boostMultiplier_4 = 1; // boost de 2x
+  }
+  else {
+    boostMultiplier_4 *= 0.9; // pas de boost
+  }
 }
 
 // === Caméra à la 3e personne ===
@@ -972,7 +1276,7 @@ function spawnDriftParticle(carMesh, direction, player) {
   
   const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
   // Déterminer la couleur : orange en boost, bleu sinon
-  const particleColor = (player == 1 ? isBoostActive : player == 2 ? isBoostActive_2 : isBoostActive_3) ? 0xff8800 : 0x00aaff;
+  const particleColor = (player == 1 ? isBoostActive : player == 2 ? isBoostActive_2 : player == 3 ? isBoostActive_3 : isBoostActive_4) ? 0xff8800 : 0x00aaff;
   
   // Créer une petite sphère bleue avec un effet luminescent
   const geometry = new THREE.SphereGeometry(0.3, 8, 8); // particule plus petite
@@ -1360,8 +1664,13 @@ function gameRun(){
   if(courseState == "start"){
     if(kart_2) kart_2.visible = false;
     if(kart_3) kart_3.visible = false;
-    boxMesh.position.x = start_place[0].x;
-    boxMesh.position.z = start_place[0].z;
+    if(kart_4) kart_4.visible = false;
+    boxMesh.position.x = start_place[11].x;
+    boxMesh.position.z = start_place[11].z;
+    boxBody.position.x = start_place[11].x;
+    boxBody.position.z = start_place[11].z;
+    
+
     courseElapsedTime = 0;
     courseStartDelay = 5;
 
@@ -1422,6 +1731,7 @@ function gameRun_2(){
   // Mise à jour du monde physique
   if(kart_2) kart_2.visible = true;
   if(kart_3) kart_3.visible = false;
+  if(kart_4) kart_4.visible = false;
   world.step(timeStep);
   updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
   updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
@@ -1470,6 +1780,7 @@ function gameRun_2(){
 function gameRun_3(){
   if(kart_2) kart_2.visible = true;
   if(kart_3) kart_3.visible = true;
+  if(kart_4) kart_4.visible = false;
   // Mise à jour du monde physique
   world.step(timeStep);
   updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
@@ -1518,6 +1829,73 @@ function gameRun_3(){
   updateCamera(boxMesh, camera, level_cube);
   updateCamera(boxMesh_2, camera_2, level_cube);
   updateCamera(boxMesh_3, camera_3, level_cube);
+  //updateVehicleCoordinates()
+}
+
+// === Fonction du Jeu en Run ===
+function gameRun_4(){
+  if(kart_2) kart_2.visible = true;
+  if(kart_3) kart_3.visible = true;
+  if(kart_4) kart_4.visible = true;
+  // Mise à jour du monde physique
+  world.step(timeStep);
+  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+  updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+  updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4);
+  // Synchronisation du mesh de la boîte avec son corps physique
+  boxMesh.position.copy(boxBody.position);
+  boxMesh.quaternion.copy(boxBody.quaternion);
+  boxMesh_2.position.copy(boxBody_2.position);
+  boxMesh_2.quaternion.copy(boxBody_2.quaternion);
+  boxMesh_3.position.copy(boxBody_3.position);
+  boxMesh_3.quaternion.copy(boxBody_3.quaternion);
+  boxMesh_4.position.copy(boxBody_4.position);
+  boxMesh_4.quaternion.copy(boxBody_4.quaternion);
+  
+  // Le kart suit la boîte (position et rotation)
+  if (kart) {
+    const localOffset = new THREE.Vector3(0, 0, -5);
+    localOffset.applyQuaternion(boxMesh.quaternion);
+    kart.position.copy(boxMesh.position).add(localOffset);
+    kart.quaternion.copy(boxMesh.quaternion);
+  }
+  if (kart_2) {
+    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    localOffset_2.applyQuaternion(boxMesh_2.quaternion);
+    kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
+    kart_2.quaternion.copy(boxMesh_2.quaternion);
+  }
+
+  if (kart_3) {
+    const localOffset_3 = new THREE.Vector3(0, 0, -5);
+    localOffset_3.applyQuaternion(boxMesh_3.quaternion);
+    kart_3.position.copy(boxMesh_3.position).add(localOffset_3);
+    kart_3.quaternion.copy(boxMesh_3.quaternion);
+  }
+  
+  if (kart_4) {
+    const localOffset_4 = new THREE.Vector3(0, 0, -5);
+    localOffset_4.applyQuaternion(boxMesh_4.quaternion);
+    kart_4.position.copy(boxMesh_4.position).add(localOffset_4);
+    kart_4.quaternion.copy(boxMesh_4.quaternion);
+  }
+
+  // Synchronisation du sol
+  groundMesh.position.copy(groundBody.position);
+  groundMesh.quaternion.copy(groundBody.quaternion);
+
+  // Mise à jour des cubes
+  cubesList.forEach(cube => {
+    cube.mesh.position.copy(cube.body.position);
+    cube.mesh.quaternion.copy(cube.body.quaternion);
+  });
+  
+  // Mise à jour de la caméra
+  updateCamera(boxMesh, camera, level_cube);
+  updateCamera(boxMesh_2, camera_2, level_cube);
+  updateCamera(boxMesh_3, camera_3, level_cube);
+  updateCamera(boxMesh_4, camera_4, level_cube);
   //updateVehicleCoordinates()
 }
 
@@ -2117,8 +2495,10 @@ function onMouseClick(event, camIndex) {
         label.name = "selection_label";
         if(perso.spec == 1){
           label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+          updateKartModel(1);
         }
         if(perso.spec == 2){
+          updateKartModel(2);
           label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
           label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
         } 
@@ -2207,6 +2587,7 @@ function createSelectionLabel() {
  * 7) Fonction déclenchée au clic sur une image sélectionnable
  ****************************************/
 function selection_travel(imageName) {
+  if(statusWolrd !== "select") return
   // Exemple de logique conditionnelle :
   //var { ratioW, ratioH } = getScaleRatios();
   var ratioW = window.innerWidth;
@@ -2291,7 +2672,7 @@ function selection_travel(imageName) {
     menu_name = "home";
     selection_travel("home");
     nb_tour_players = [0,0,0,0];
-    courseState == "start";
+    courseState = "start";
     statusWolrd = "runsolo";
   }
   else {
@@ -2309,6 +2690,34 @@ function theUpdateGame(deltaTime){
 //            =================== AI ==========================
 //
 // =============================================================================
+
+// Supprime complètement un véhicule IA
+function removeAIVehicle(ai) {
+  // Retirer le corps physique du monde, s'il existe
+  if (ai.body) {
+    world.removeBody(ai.body);
+    ai.body = null;
+  }
+  // Retirer le mesh de debug de la scène
+  if (ai.mesh) {
+    scene.remove(ai.mesh);
+    ai.mesh = null;
+  }
+  // Retirer le groupe visuel (contenant le modèle) de la scène
+  if (ai.visualGroup) {
+    scene.remove(ai.visualGroup);
+    ai.visualGroup = null;
+  }
+}
+
+// Supprime tous les véhicules IA et vide le tableau aiVehicles
+function removeAllAIVehicles() {
+  for (let i = 0; i < aiVehicles.length; i++) {
+    removeAIVehicle(aiVehicles[i]);
+  }
+  aiVehicles.length = 0; // Vide le tableau
+}
+
 
 // Fonction modifiée pour spawn de particules pour l'IA (on accepte un paramètre particleColor)
 function spawnDriftParticleIa(carMesh, direction, particleColor) {
@@ -2656,6 +3065,10 @@ function animate() {
   updateVehicleCoordinates();
   
   if(statusWolrd === "select"){
+    if(aiVehicles.length != 0){
+      removeAllAIVehicles();
+      playerPosReset();
+    }
     particulesSelectMenu();
     grossissmentPerso();
     select_menu(deltaTime);
@@ -2766,11 +3179,17 @@ function animate() {
     camera_2.aspect = window.innerWidth / window.innerHeight;
     camera_2.updateProjectionMatrix();
 
+    camera_3.aspect = window.innerWidth / window.innerHeight;
+    camera_3.updateProjectionMatrix();
+
+    camera_4.aspect = window.innerWidth / window.innerHeight;
+    camera_4.updateProjectionMatrix();
+
     // Taille du renderer et activation du scissor test
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setScissorTest(true);
 
-    gameRun_3(); // Run the game
+    gameRun_4(); // Run the game
 
     // ---------------------
     // Quadrant supérieur gauche : scene1 et camera1
@@ -2794,7 +3213,7 @@ function animate() {
     // Quadrant inférieur droit : scene1 et camera4
     renderer.setViewport(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
     renderer.setScissor(window.innerWidth / 2, 0, window.innerWidth / 2, window.innerHeight / 2);
-    renderer.render(scene, camera_map);
+    renderer.render(scene, camera_4);
    
   }
   
