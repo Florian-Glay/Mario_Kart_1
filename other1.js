@@ -8,6 +8,9 @@ import * as CANNON from 'cannon-es';
 let chatValue = "";
 var statusWolrd = "select";
 var courseState = "start"
+var courseElapsedTime = 0;
+var courseStartDelay = 5;
+
 var level_cube = 1;
 var nbTour = 1;
 var start_place = [
@@ -240,6 +243,7 @@ const boxMat = new THREE.MeshBasicMaterial({
   wireframe: true
 });
 const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+boxMesh.name = "player_1";
 boxMesh.visible = false;
 scene.add(boxMesh);
 
@@ -298,9 +302,10 @@ loader.load(
 const boxGeo_2 = new THREE.BoxGeometry(17, 5, 25);
 const boxMat_2 = new THREE.MeshBasicMaterial({
   color: 0x00ff00,
-  wireframe: true
+  wireframe: true,
 });
 const boxMesh_2 = new THREE.Mesh(boxGeo_2, boxMat_2);
+boxMesh_2.name = "player_2";
 boxMesh_2.visible = false;
 scene.add(boxMesh_2);
 
@@ -349,10 +354,11 @@ loader.load(
 const boxGeo_3 = new THREE.BoxGeometry(17, 5, 25);
 const boxMat_3 = new THREE.MeshBasicMaterial({
   color: 0x00ff00,
-  wireframe: true
+  wireframe: true,
 });
 const boxMesh_3 = new THREE.Mesh(boxGeo_3, boxMat_3);
 boxMesh_3.visible = false;
+boxMesh_3.name = "player_3";
 scene.add(boxMesh_3);
 
 // Corps physique Cannon-es
@@ -590,6 +596,7 @@ function updateCarSpeed(boxCar) {
 }
 
 var tour = [false,false,false,false];
+var nb_tour_players = [0,0,0,0];
 
 function tourUpdate(boxCarMesh){
   if (isCarOnTerrain("step_4",boxCarMesh)) {
@@ -597,6 +604,13 @@ function tourUpdate(boxCarMesh){
     if(tour[0] && tour[1] && tour[2] && tour[3]){
       tour = [false,false,false,false];
       console.log("Tour Complet");
+      nb_tour_players[boxCarMesh.name =="player_1" ? 0 : boxCarMesh.name =="player_2" ? 1 : 2] += 1;
+      console.log(nb_tour_players);
+      if(statusWolrd == "runsolo"){
+        if(nb_tour_players[0] == nbTour){
+          statusWolrd = "select";
+        }
+      }
     } 
   }
   if (isCarOnTerrain("step_1",boxCarMesh)) {
@@ -1274,10 +1288,6 @@ createOverlay();
 
 // Création des IA
 const aiVehicles = [];
-for (let i = 0; i < 11; i++) {
-  // On suppose que start_place est un tableau d'objets avec des propriétés x et z
-  aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
-}
 
 
 // === Fonction de l'interpréteur de commande ===
@@ -1344,11 +1354,34 @@ function commandeInterpretor(){
 function gameRun(){
   // Mise à jour du monde physique
   world.step(timeStep);
-  if(kart_2) kart_2.visible = false;
-  if(kart_3) kart_3.visible = false;
+  
   //const delta = clock.getDelta();
   //if (mixer) mixer.update(delta);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+  if(courseState == "start"){
+    if(kart_2) kart_2.visible = false;
+    if(kart_3) kart_3.visible = false;
+    boxMesh.position.x = start_place[0].x;
+    boxMesh.position.z = start_place[0].z;
+    courseElapsedTime = 0;
+    courseStartDelay = 5;
+
+    for (let i = 0; i < 11; i++) {
+      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
+      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+    }
+
+    courseState = "load";
+  }
+  if (courseState == "load") {
+    courseElapsedTime += timeStep;
+    console.log(courseElapsedTime);
+    if (courseElapsedTime >= courseStartDelay) {
+      courseState = "run"
+    }
+  }
+  if(courseState == "run"){
+    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+  } 
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1618,19 +1651,20 @@ loader.load('3D_Model/mario_arma.glb', (gltf) => {
     }
   });
 
+  scene_select.add(perso_1);
+
+  // --- Ajout de la voiture 1 dans la sélection pour la caméra 0 ---
+  selection_perso[0] = perso_1;
   const label = createSelectionLabel();
   label.name = "selection_label";
-  label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+  if (perso_1.spec == 1) {
+    label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+  } else if (perso_1.spec == 2) {
+    label.position.set(0, 0.2, 0);
+    label.scale.set(0.2, 0.05, 0.1); // adapter la taille si besoin
+  }
   perso_1.add(label);
-
-  scene_select.add(perso_1);
 });
-// Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
-const maxCameras = 2;
-const selection_perso = new Array(maxCameras).fill(null);
-
-// On ajoute le nouveau perso pour cette caméra
-selection_perso[0] = perso_1;
 
 
 let perso_2;
@@ -1721,14 +1755,16 @@ const plansList = [
   {name: "ok_solo_tour",image: "Image/ok_unselect.png", image_select:"Image/ok_select.png",
     fitByHeight: false,size: 0.5, x: 2560,y: 351,z: 0,selection: true},
 
-  {name: "tour_1",image: "Image/tour_1.png", fitByHeight: false,size: 0.2, x: 2260,y: 551,z: 0,selection: false},
-  {name: "tour_2",image: "Image/tour_2.png", fitByHeight: false,size: 0.2, x: 2560,y: 551,z: 0,selection: false},
-  {name: "tour_3",image: "Image/tour_3.png", fitByHeight: false,size: 0.2, x: 2860,y: 551,z: 0,selection: false},
+  {name: "tour_1",image: "Image/tour_1.png", fitByHeight: false,size: 0.2, x: 2200,y: 551,z: 0,selection: true},
+  {name: "tour_2",image: "Image/tour_2.png", fitByHeight: false,size: 0.2, x: 2560,y: 551,z: 0,selection: true},
+  {name: "tour_3",image: "Image/tour_3.png", fitByHeight: false,size: 0.2, x: 2920,y: 551,z: 0,selection: true},
 ];
 
 // Indice du plan actuel pour la navigation
 let planIndex = 0;
 let selection_var = "";
+// Variable globale pour la sélection du tour (seulement une sélection)
+let selected_plan = null;
 
 // Variables pour la transition fluide de la caméra
 let isTransitioning = false;
@@ -1843,8 +1879,22 @@ plansList.forEach((plan, index) => {
 
     // Ajout à la scène
     scene_select.add(planeMesh);
+
+    if(planeMesh.userData.name === "tour_1"){
+      // Mettre à jour la sélection
+      selected_plan = planeMesh;
+      // Créer et ajouter le label de sélection
+      const label = createSelectionLabel();
+      label.name = "selection_label";
+      // Positionner le label au-dessus de l'image (à ajuster selon vos besoins)
+      label.scale.set(150,38,75)
+      label.position.set(0, 120, 0);
+      console.log("label pour tour");
+      planeMesh.add(label);
+    }
   });
 });
+
 
 
 /****************************************
@@ -1982,6 +2032,9 @@ function onMouseMove(event) {
       if (obj.name === "perso" && (obj === hovered || obj.getObjectById(hovered.id))) {
         hoveredPersos.add(obj);
       }
+      if ((obj.userData.name === "tour_1" || obj.userData.name === "tour_2" || obj.userData.name === "tour_3") && (obj === hovered || obj.getObjectById(hovered.id))) {
+        hoveredPersos.add(obj);
+      }
     });
   }
 
@@ -2003,11 +2056,21 @@ function grossissmentPerso(){
       obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
       obj.scale.z = THREE.MathUtils.lerp(obj.scale.z, targetScale, 0.1);
     }
+    if (obj.userData.name === "tour_1" || obj.userData.name === "tour_2" || obj.userData.name === "tour_3") {
+      var targetScale = hoveredPersos.has(obj) ? 1.2 : 1;
+      // Lerp progressif vers l’échelle cible
+      obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
+      obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
+      obj.scale.z = THREE.MathUtils.lerp(obj.scale.z, targetScale, 0.1);
+    }
   });
 }
 
-var menu_name = "home";
 
+// Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
+const maxCameras = 2;
+const selection_perso = new Array(maxCameras).fill(null);
+var menu_name = "home";
 
 
 function onMouseClick(event, camIndex) {
@@ -2064,6 +2127,54 @@ function onMouseClick(event, camIndex) {
     }
   }
 }
+
+function onMouseClickPlan(event) {
+  // Conversion des coordonnées de la souris en coordonnées normalisées
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  // Configurer le raycaster à partir de la caméra utilisée en mode sélection (camera_select)
+  raycaster.setFromCamera(mouse, camera_select);
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
+  
+  if (intersects.length > 0) {
+    // Récupérer l'objet cliqué
+    let clicked = intersects[0].object;
+    
+    // Remonter dans la hiérarchie pour trouver l'objet possédant userData
+    while (clicked && !clicked.userData) {
+      clicked = clicked.parent;
+    }
+    
+    // Vérifier que l'objet est sélectionnable (userData.selection === true)
+    if (clicked && clicked.userData && clicked.userData.selection && 
+      (clicked.userData.name === "tour_1" || clicked.userData.name === "tour_2" || clicked.userData.name === "tour_3")) {
+      // Si l'image cliquée est déjà sélectionnée, ne rien faire
+      if (selected_plan === clicked) {
+        return;
+      } else {
+        // Si une image était déjà sélectionnée, retirer son label
+        if (selected_plan) {
+          const oldLabel = selected_plan.getObjectByName("selection_label");
+          if (oldLabel) selected_plan.remove(oldLabel);
+        }
+        // Mettre à jour la sélection
+        selected_plan = clicked;
+        // Créer et ajouter le label de sélection
+        const label = createSelectionLabel();
+        label.name = "selection_label";
+        // Positionner le label au-dessus de l'image (à ajuster selon vos besoins)
+        label.scale.set(150,38,75)
+        label.position.set(0, 120, 0);
+        console.log("label pour tour");
+        clicked.add(label);
+      }
+    }
+  }
+}
+
+document.addEventListener("click", onMouseClickPlan);
+
 
 
 
@@ -2165,6 +2276,23 @@ function selection_travel(imageName) {
     transitionTarget.set(ratioW * 2, ratioH * 1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
+  }
+  else if(imageName === "tour_1"){
+    nbTour = 1;
+  }
+  else if(imageName === "tour_2"){
+    nbTour = 3;
+  }
+  else if(imageName === "tour_3"){
+    nbTour = 3;
+  }
+  else if(imageName === "ok_solo_tour"){
+    console.log("ok_solo_tour");
+    menu_name = "home";
+    selection_travel("home");
+    nb_tour_players = [0,0,0,0];
+    courseState == "start";
+    statusWolrd = "runsolo";
   }
   else {
     console.log("Action par défaut pour", imageName);
