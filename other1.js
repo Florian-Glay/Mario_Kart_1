@@ -323,8 +323,6 @@ function updateKartModel(kartModelMode) {
   });
 }
 
-updateKartModel(1); // Mets le Kart 1 sur mario
-
 
 
 // === 2eme VOITURE ===
@@ -400,8 +398,6 @@ function updateKart2Model(kartModelMode) {
     scene.add(kart_2);
   });
 }
-
-updateKart2Model(1);
 
 // === 3eme VOITURE ===
 const boxGeo_3 = new THREE.BoxGeometry(17, 5, 25);
@@ -480,7 +476,7 @@ function updateKart3Model(kartModelMode) {
   });
 }
 
-updateKart3Model(1);
+
 
 // === 4eme VOITURE ===
 const boxGeo_4 = new THREE.BoxGeometry(17, 5, 25);
@@ -488,7 +484,7 @@ const boxMat_4 = new THREE.MeshBasicMaterial({
   color: 0x00ff00,
   wireframe: true,
 });
-const boxMesh_4 = new THREE.Mesh(boxGeo_3, boxMat_3);
+const boxMesh_4 = new THREE.Mesh(boxGeo_4, boxMat_4);
 boxMesh_4.visible = false;
 boxMesh_4.name = "player_4";
 scene.add(boxMesh_4);
@@ -497,7 +493,7 @@ scene.add(boxMesh_4);
 const boxBody_4 = new CANNON.Body({
   mass: 200,
   shape: new CANNON.Box(new CANNON.Vec3(8, 3, 12.5 )),
-  position: new CANNON.Vec3(start_place[9].x, -20, start_place[9].z)
+  position: new CANNON.Vec3(start_place[8].x, -20, start_place[8].z)
 });
 boxBody_4.quaternion.setFromEuler(0,-Math.PI, 0);
 boxBody_4.fixedRotation = true;
@@ -558,8 +554,6 @@ function updateKart4Model(kartModelMode) {
     scene.add(kart_4);
   });
 }
-
-updateKart4Model(1);
 
 // === Vitesse voiture ===
 
@@ -753,32 +747,48 @@ function updateCarSpeed(boxCar) {
   return speedMultiplier;
 }
 
-var tour = [false,false,false,false];
+var tour = [[false,false,false,false],[false,false,false,false],[false,false,false,false],[false,false,false,false]];
 var nb_tour_players = [0,0,0,0];
 
 function tourUpdate(boxCarMesh){
+  var id = boxCarMesh.name =="player_1" ? 0 : boxCarMesh.name =="player_2" ? 1 : boxCarMesh.name =="player_3" ? 2 : 3;
   if (isCarOnTerrain("step_4",boxCarMesh)) {
-    if(!tour[0]) tour[0] = true;
-    if(tour[0] && tour[1] && tour[2] && tour[3]){
-      tour = [false,false,false,false];
+    if(!tour[id][0]) tour[id][0] = true;
+    if(tour[id][0] && tour[id][1] && tour[id][2] && tour[id][3]){
+      tour[id] = [false,false,false,false];
       console.log("Tour Complet");
-      nb_tour_players[boxCarMesh.name =="player_1" ? 0 : boxCarMesh.name =="player_2" ? 1 : 2] += 1;
+      nb_tour_players[id] += 1;
       console.log(nb_tour_players);
-      if(statusWolrd == "runsolo"){
+      if(statusWolrd >= "runsolo"){
         if(nb_tour_players[0] == nbTour){
+          statusWolrd = "select";
+        }
+      }
+      if(statusWolrd == "runsplit"){
+        if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour){
+          statusWolrd = "select";
+        }
+      }
+      if(statusWolrd == "runsplit3"){
+        if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour && nb_tour_players[2] >= nbTour){
+          statusWolrd = "select";
+        }
+      }
+      if(statusWolrd == "runsplit4"){
+        if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour && nb_tour_players[2] >= nbTour && nb_tour_players[3] >= nbTour){
           statusWolrd = "select";
         }
       }
     } 
   }
   if (isCarOnTerrain("step_1",boxCarMesh)) {
-    if(tour[0] && !tour[1]) tour[1] = true;
+    if(tour[id][0] && !tour[id][1]) tour[id][1] = true;
   }
   if (isCarOnTerrain("step_2",boxCarMesh)) {
-    if(tour[1] && !tour[2]) tour[2] = true;
+    if(tour[id][1] && !tour[id][2]) tour[id][2] = true;
   }
   if (isCarOnTerrain("step_3",boxCarMesh)) {
-    if(tour[2] && !tour[3]) tour[3] = true;
+    if(tour[id][2] && !tour[id][3]) tour[id][3] = true;
   }
 }
 
@@ -901,7 +911,8 @@ function playerPosReset(){
   boxBody_3.quaternion.setFromEuler(0,-Math.PI, 0);
   boxBody_4.quaternion.setFromEuler(0,-Math.PI, 0);
 
-  
+  tour = [[false,false,false,false],[false,false,false,false],[false,false,false,false],[false,false,false,false]];
+  nb_tour_players = [0,0,0,0];
 }
 
 
@@ -1662,6 +1673,7 @@ function gameRun(){
   //const delta = clock.getDelta();
   //if (mixer) mixer.update(delta);
   if(courseState == "start"){
+    updateKartModel(customSkin[0]);
     if(kart_2) kart_2.visible = false;
     if(kart_3) kart_3.visible = false;
     if(kart_4) kart_4.visible = false;
@@ -1685,7 +1697,7 @@ function gameRun(){
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
     if (courseElapsedTime >= courseStartDelay) {
-      courseState = "run"
+      courseState = "run";
     }
   }
   if(courseState == "run"){
@@ -1698,7 +1710,7 @@ function gameRun(){
   // Le kart suit la boîte (position et rotation)
   if (kart) {
     // Vecteur d'offset dans l'espace local de la boîte (ici, -5 unités sur l'axe Z local)
-    const localOffset = new THREE.Vector3(0, 0, -5);
+    const localOffset = new THREE.Vector3(0, customSkin[0] == 1 ? -5 : 0, -5);
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
@@ -1719,7 +1731,6 @@ function gameRun(){
   updateCamera(boxMesh, camera, level_cube);
   //updateVehicleCoordinates()
 
-  // Mise à jour de la voiture IA
   // Mise à jour de toutes les IA
   aiVehicles.forEach(ai => {
     updateAIVehicle(ai, timeStep);
@@ -1728,13 +1739,42 @@ function gameRun(){
 
 // === Fonction du Jeu en Run ===
 function gameRun_2(){
-  // Mise à jour du monde physique
-  if(kart_2) kart_2.visible = true;
-  if(kart_3) kart_3.visible = false;
-  if(kart_4) kart_4.visible = false;
+  
   world.step(timeStep);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+  if(courseState == "start"){
+    // Mise à jour du monde physique
+    updateKartModel(customSkin[0]); // Mets le Kart 1 sur mario
+    updateKart2Model(customSkin[1]);
+    if(kart_2) kart_2.visible = true;
+    if(kart_3) kart_3.visible = false;
+    if(kart_4) kart_4.visible = false;
+    boxMesh.position.x = start_place[11].x;
+    boxMesh.position.z = start_place[11].z;
+    boxBody.position.x = start_place[11].x;
+    boxBody.position.z = start_place[11].z;
+    
+
+    courseElapsedTime = 0;
+    courseStartDelay = 5;
+
+    for (let i = 0; i < 10; i++) {
+      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
+      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+    }
+
+    courseState = "load";
+  }
+  if (courseState == "load") {
+    courseElapsedTime += timeStep;
+    console.log(courseElapsedTime);
+    if (courseElapsedTime >= courseStartDelay) {
+      courseState = "run";
+    }
+  }
+  if(courseState == "run"){
+    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+  }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1744,7 +1784,7 @@ function gameRun_2(){
   // Le kart suit la boîte (position et rotation)
   if (kart) {
     // Vecteur d'offset dans l'espace local de la boîte (ici, -5 unités sur l'axe Z local)
-    const localOffset = new THREE.Vector3(0, 0, -5);
+    const localOffset = new THREE.Vector3(0, customSkin[0] == 1 ? -5 : 0, -5);
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
@@ -1753,7 +1793,7 @@ function gameRun_2(){
   // Le kart suit la boîte (position et rotation)
   if (kart_2) {
     // Vecteur d'offset dans l'espace local de la boîte (ici, -5 unités sur l'axe Z local)
-    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    const localOffset_2 = new THREE.Vector3(0, customSkin[1] == 1 ? -5 : 0, -5);
     localOffset_2.applyQuaternion(boxMesh_2.quaternion);
     kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
     kart_2.quaternion.copy(boxMesh_2.quaternion);
@@ -1774,18 +1814,52 @@ function gameRun_2(){
   updateCamera(boxMesh, camera, level_cube);
   updateCamera(boxMesh_2, camera_2, level_cube);
   //updateVehicleCoordinates()
+
+  // Mise à jour de toutes les IA
+  aiVehicles.forEach(ai => {
+    updateAIVehicle(ai, timeStep);
+  });
 }
 
 // === Fonction du Jeu en Run ===
 function gameRun_3(){
-  if(kart_2) kart_2.visible = true;
-  if(kart_3) kart_3.visible = true;
-  if(kart_4) kart_4.visible = false;
   // Mise à jour du monde physique
   world.step(timeStep);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
-  updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+  if(courseState == "start"){
+    updateKartModel(customSkin[0]); // Mets le Kart 1 sur mario
+    updateKart2Model(customSkin[1]);
+    updateKart3Model(customSkin[2]);
+    if(kart_2) kart_2.visible = true;
+    if(kart_3) kart_3.visible = true;
+    if(kart_4) kart_4.visible = false;
+    boxMesh.position.x = start_place[11].x;
+    boxMesh.position.z = start_place[11].z;
+    boxBody.position.x = start_place[11].x;
+    boxBody.position.z = start_place[11].z;
+    
+
+    courseElapsedTime = 0;
+    courseStartDelay = 5;
+
+    for (let i = 0; i < 9; i++) {
+      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
+      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+    }
+
+    courseState = "load";
+  }
+  if (courseState == "load") {
+    courseElapsedTime += timeStep;
+    console.log(courseElapsedTime);
+    if (courseElapsedTime >= courseStartDelay) {
+      courseState = "run";
+    }
+  }
+  if(courseState == "run"){
+    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+    updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+  }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1796,20 +1870,20 @@ function gameRun_3(){
   
   // Le kart suit la boîte (position et rotation)
   if (kart) {
-    const localOffset = new THREE.Vector3(0, 0, -5);
+    const localOffset = new THREE.Vector3(0, customSkin[0] == 1 ? -5 : 0, -5);
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
   }
   if (kart_2) {
-    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    const localOffset_2 = new THREE.Vector3(0, customSkin[1] == 1 ? -5 : 0, -5);
     localOffset_2.applyQuaternion(boxMesh_2.quaternion);
     kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
     kart_2.quaternion.copy(boxMesh_2.quaternion);
   }
 
   if (kart_3) {
-    const localOffset_3 = new THREE.Vector3(0, 0, -5);
+    const localOffset_3 = new THREE.Vector3(0, customSkin[2] == 1 ? -5 : 0, -5);
     localOffset_3.applyQuaternion(boxMesh_3.quaternion);
     kart_3.position.copy(boxMesh_3.position).add(localOffset_3);
     kart_3.quaternion.copy(boxMesh_3.quaternion);
@@ -1830,19 +1904,54 @@ function gameRun_3(){
   updateCamera(boxMesh_2, camera_2, level_cube);
   updateCamera(boxMesh_3, camera_3, level_cube);
   //updateVehicleCoordinates()
+
+  // Mise à jour de toutes les IA
+  aiVehicles.forEach(ai => {
+    updateAIVehicle(ai, timeStep);
+  });
 }
 
 // === Fonction du Jeu en Run ===
 function gameRun_4(){
-  if(kart_2) kart_2.visible = true;
-  if(kart_3) kart_3.visible = true;
-  if(kart_4) kart_4.visible = true;
   // Mise à jour du monde physique
   world.step(timeStep);
-  updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-  updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
-  updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
-  updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4);
+  if(courseState == "start"){
+    updateKartModel(customSkin[0]); // Mets le Kart 1 sur mario
+    updateKart2Model(customSkin[1]);
+    updateKart3Model(customSkin[2]);
+    updateKart4Model(customSkin[3]);
+    if(kart_2) kart_2.visible = true;
+    if(kart_3) kart_3.visible = true;
+    if(kart_4) kart_4.visible = true;
+    boxMesh.position.x = start_place[11].x;
+    boxMesh.position.z = start_place[11].z;
+    boxBody.position.x = start_place[11].x;
+    boxBody.position.z = start_place[11].z;
+    
+
+    courseElapsedTime = 0;
+    courseStartDelay = 5;
+
+    for (let i = 0; i < 8; i++) {
+      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
+      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+    }
+
+    courseState = "load";
+  }
+  if (courseState == "load") {
+    courseElapsedTime += timeStep;
+    console.log(courseElapsedTime);
+    if (courseElapsedTime >= courseStartDelay) {
+      courseState = "run";
+    }
+  }
+  if(courseState == "run"){
+    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+    updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+    updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4);
+  }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -1855,27 +1964,27 @@ function gameRun_4(){
   
   // Le kart suit la boîte (position et rotation)
   if (kart) {
-    const localOffset = new THREE.Vector3(0, 0, -5);
+    const localOffset = new THREE.Vector3(0, customSkin[0] == 1 ? -5 : 0, -5);
     localOffset.applyQuaternion(boxMesh.quaternion);
     kart.position.copy(boxMesh.position).add(localOffset);
     kart.quaternion.copy(boxMesh.quaternion);
   }
   if (kart_2) {
-    const localOffset_2 = new THREE.Vector3(0, 0, -5);
+    const localOffset_2 = new THREE.Vector3(0, customSkin[1] == 1 ? -5 : 0, -5);
     localOffset_2.applyQuaternion(boxMesh_2.quaternion);
     kart_2.position.copy(boxMesh_2.position).add(localOffset_2);
     kart_2.quaternion.copy(boxMesh_2.quaternion);
   }
 
   if (kart_3) {
-    const localOffset_3 = new THREE.Vector3(0, 0, -5);
+    const localOffset_3 = new THREE.Vector3(0, customSkin[2] == 1 ? -5 : 0, -5);
     localOffset_3.applyQuaternion(boxMesh_3.quaternion);
     kart_3.position.copy(boxMesh_3.position).add(localOffset_3);
     kart_3.quaternion.copy(boxMesh_3.quaternion);
   }
   
   if (kart_4) {
-    const localOffset_4 = new THREE.Vector3(0, 0, -5);
+    const localOffset_4 = new THREE.Vector3(0, customSkin[3] == 1 ? -5 : 0, -5);
     localOffset_4.applyQuaternion(boxMesh_4.quaternion);
     kart_4.position.copy(boxMesh_4.position).add(localOffset_4);
     kart_4.quaternion.copy(boxMesh_4.quaternion);
@@ -1897,6 +2006,11 @@ function gameRun_4(){
   updateCamera(boxMesh_3, camera_3, level_cube);
   updateCamera(boxMesh_4, camera_4, level_cube);
   //updateVehicleCoordinates()
+
+  // Mise à jour de toutes les IA
+  aiVehicles.forEach(ai => {
+    updateAIVehicle(ai, timeStep);
+  });
 }
 
 // === Fonction du Jeu en Run ===
@@ -2093,8 +2207,6 @@ loader.load('3D_Model/car_5.glb', (gltf) => {
 function rotatePerso(perso){
   if(perso) perso.rotation.y += 0.02;
 }
-
-const nb_menu_select = 5;  // Nombre de positions pour la navigation Espace/Shift+Espace
 
 // Liste des plans (images) à afficher
 const plansList = [
@@ -2446,9 +2558,11 @@ function grossissmentPerso(){
 
 
 // Supposons que maxCameras est défini quelque part (par exemple 2, 3, etc.)
-const maxCameras = 2;
+const maxCameras = 4;
 const selection_perso = new Array(maxCameras).fill(null);
 var menu_name = "home";
+
+var customSkin = [1,1,1,1];
 
 
 function onMouseClick(event, camIndex) {
@@ -2495,10 +2609,10 @@ function onMouseClick(event, camIndex) {
         label.name = "selection_label";
         if(perso.spec == 1){
           label.position.set(0, 20, 0); // positionner le label au-dessus du perso
-          updateKartModel(1);
+          customSkin[0] = 1;
         }
         if(perso.spec == 2){
-          updateKartModel(2);
+          customSkin[0] = 2;
           label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
           label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
         } 
