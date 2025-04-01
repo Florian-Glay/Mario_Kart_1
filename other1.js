@@ -2825,7 +2825,6 @@ function createSelectionLabel(color = 0) {
   return sprite;
 }
 
-// function slider(){
 var ratioW = window.innerWidth;
 var ratioH = window.innerHeight;
 
@@ -2853,54 +2852,85 @@ sliderGroup.position.set(ratioW * 1, ratioH * -1, 0);
 
 // Ajoutez le groupe uniquement à scene_select
 scene_select.add(sliderGroup);
-// }
-// slider();
+
 
 // Variable globale qui contiendra le nombre de players (2, 3 ou 4)
-let numPlayers = 2; // valeur initiale
+let numPlayers = 2;
 
-// --- Interactivité du slider ---
-// On ajoute un écouteur sur l'élément DOM du renderer (qui affiche scene_select)
-// pour détecter les clics sur la barre
+// Variable pour gérer le drag du curseur
+let isDragging = false;
+
+// Écouteurs pour gérer le drag sur le slider
 renderer.domElement.addEventListener('pointerdown', onSliderPointerDown);
+renderer.domElement.addEventListener('pointermove', onSliderPointerMove);
+renderer.domElement.addEventListener('pointerup', onSliderPointerUp);
 
 function onSliderPointerDown(event) {
-  // Calcul des coordonnées normalisées du clic
+  // Conversion des coordonnées de la souris en coordonnées normalisées
   const mouse = new THREE.Vector2();
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
   
-  // Création d'un raycaster à partir de camera_select
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera_select);
-  
-  // On vérifie les intersections avec la barre (sliderBase)
+  // Vérifier si la barre du slider est cliquée
   const intersects = raycaster.intersectObject(sliderBase);
   if (intersects.length > 0) {
-    // On récupère le point d'intersection (en coordonnées mondiales)
-    const intersectPoint = intersects[0].point.clone();
-    // Convertir ce point en coordonnées locales dans le groupe sliderGroup
-    sliderGroup.worldToLocal(intersectPoint);
-    // L'axe X de la barre s'étend de -100 à +100 (puisque la largeur est 200)
-    const localX = intersectPoint.x;
-    // Définir 3 zones discrètes :
-    // Zone gauche : x < -33.3   --> numPlayers = 2, curseur à -90
-    // Zone centrale : -33.3 <= x < 33.3   --> numPlayers = 3, curseur à 0
-    // Zone droite : x >= 33.3   --> numPlayers = 4, curseur à 90
-    if (localX < -33.3) {
-      numPlayers = 2;
-      sliderCursor.position.x = -90;
-    } else if (localX < 33.3) {
-      numPlayers = 3;
-      sliderCursor.position.x = 0;
-    } else {
-      numPlayers = 4;
-      sliderCursor.position.x = 90;
-    }
-    console.log("Nombre de joueurs : ", numPlayers);
+    isDragging = true;
+    updateSliderCursorPosition(intersects[0].point);
   }
 }
 
+function onSliderPointerMove(event) {
+  if (!isDragging) return;
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+  
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera_select);
+  const intersects = raycaster.intersectObject(sliderBase);
+  if (intersects.length > 0) {
+    updateSliderCursorPosition(intersects[0].point);
+  }
+}
+
+function onSliderPointerUp(event) {
+  if (!isDragging) return;
+  isDragging = false;
+  
+  // Lorsque le curseur est relâché, on le "snappe" sur une position discrète
+  // Dans l'espace local du groupe, la barre s'étend de -100 à +100 en X.
+  // Définissons trois zones :
+  //   - Si x < -33.3, alors numPlayers = 2 et le curseur se place à -90.
+  //   - Si -33.3 <= x < 33.3, alors numPlayers = 3 et le curseur se place à 0.
+  //   - Si x >= 33.3, alors numPlayers = 4 et le curseur se place à 90.
+  const localX = sliderCursor.position.x;
+  let snappedX;
+  if (localX < -33.3) {
+    snappedX = -90;
+    numPlayers = 2;
+  } else if (localX < 33.3) {
+    snappedX = 0;
+    numPlayers = 3;
+  } else {
+    snappedX = 90;
+    numPlayers = 4;
+  }
+  sliderCursor.position.x = snappedX;
+  console.log("Nombre de players :", numPlayers);
+}
+
+function updateSliderCursorPosition(worldPoint) {
+  // Convertir le point d'intersection en coordonnées locales du sliderGroup
+  const localPoint = worldPoint.clone();
+  sliderGroup.worldToLocal(localPoint);
+  // La barre s'étend de -100 à +100 en X (largeur = 200)
+  const clampedX = Math.max(-100, Math.min(100, localPoint.x));
+  sliderCursor.position.x = clampedX;
+  // Vous pouvez, si vous le souhaitez, mettre à jour numPlayers de manière continue ici.
+  // Ici, nous attendons le pointerup pour effectuer le snapping discret.
+}
 
 
 /****************************************
