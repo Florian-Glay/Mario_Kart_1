@@ -134,7 +134,7 @@ const camera_select = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   1,
-  10000
+  50000
 );
 camera_select.position.set(0, 0, 359); // Ajustez la position selon vos besoins
 camera_select.lookAt(new THREE.Vector3(0, 0, 0));
@@ -269,6 +269,25 @@ world.addBody(boxBody);
 const kartModelMario = '3D_Model/mario_arma.glb'; // chemin initial
 const kartModelLink = '3D_Model/car_5.glb';    // nouveau chemin après 1 minute
 
+function prepareModel(kartModelMode){
+  let modelPath;
+  if (kartModelMode === 1) {
+    modelPath = kartModelMario; // chemin du modèle initial
+  } else if (kartModelMode === 2) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } 
+  else if (kartModelMode === 3) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } 
+  else if (kartModelMode === 4) {
+    modelPath = kartModelLink; // chemin du nouveau modèle
+  } else {
+    console.error("Mode de kart non reconnu :", kartModelMode);
+    return;
+  }
+  return modelPath;
+}
+
 // === Chargement du modèle de la voiture (kart) ===
 let kart;//,mixer;
 // Fonction générique de chargement d'un modèle de kart
@@ -303,14 +322,7 @@ function loadKartModel(modelPath, onLoaded) {
 
 function updateKartModel(kartModelMode) {
   let modelPath;
-  if (kartModelMode === 1) {
-    modelPath = kartModelMario; // chemin du modèle initial
-  } else if (kartModelMode === 2) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
-  } else {
-    console.error("Mode de kart non reconnu :", kartModelMode);
-    return;
-  }
+  modelPath = prepareModel(kartModelMode);
 
   loadKartModel(modelPath, (newModel) => {
     // Si un ancien kart existe, le retirer de la scène
@@ -379,14 +391,7 @@ loader.load(
 
 function updateKart2Model(kartModelMode) {
   let modelPath;
-  if (kartModelMode === 1) {
-    modelPath = kartModelMario; // chemin du modèle initial
-  } else if (kartModelMode === 2) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
-  } else {
-    console.error("Mode de kart non reconnu :", kartModelMode);
-    return;
-  }
+  modelPath = prepareModel(kartModelMode);
 
   loadKartModel(modelPath, (newModel) => {
     // Si un ancien kart existe, le retirer de la scène
@@ -451,19 +456,9 @@ loader.load(
   console.error
 );
 
-
-
-
 function updateKart3Model(kartModelMode) {
   let modelPath;
-  if (kartModelMode === 1) {
-    modelPath = kartModelMario; // chemin du modèle initial
-  } else if (kartModelMode === 2) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
-  } else {
-    console.error("Mode de kart non reconnu :", kartModelMode);
-    return;
-  }
+  modelPath = prepareModel(kartModelMode);
 
   loadKartModel(modelPath, (newModel) => {
     // Si un ancien kart existe, le retirer de la scène
@@ -535,14 +530,7 @@ loader.load(
 
 function updateKart4Model(kartModelMode) {
   let modelPath;
-  if (kartModelMode === 1) {
-    modelPath = kartModelMario; // chemin du modèle initial
-  } else if (kartModelMode === 2) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
-  } else {
-    console.error("Mode de kart non reconnu :", kartModelMode);
-    return;
-  }
+  modelPath = prepareModel(kartModelMode);
 
   loadKartModel(modelPath, (newModel) => {
     // Si un ancien kart existe, le retirer de la scène
@@ -1654,6 +1642,18 @@ function commandeInterpretor(){
     level_cube = 2.5;
     console.log("Commande:", commande);
   }
+  if(commande === "p0"){
+    thePlayerSelect = 0;
+  }
+  if(commande === "p1"){
+    thePlayerSelect = 1;
+  }
+  if(commande === "p2"){
+    thePlayerSelect = 2;
+  }
+  if(commande === "p3"){
+    thePlayerSelect = 3;
+  }
   
   // Si la commande commence par "c", on passe par cubeLevelCreator
   if(commande.trim().toLowerCase().startsWith("c")){
@@ -2052,6 +2052,8 @@ function select_menu(delta){
   // Mise à jour du temps écoulé
   rotatePerso(perso_1);
   rotatePerso(perso_2);
+  rotatePerso(perso_3);
+  rotatePerso(perso_4);
   // Transition fluide de la caméra
   if (isTransitioning) {
     transitionElapsed += delta;
@@ -2111,7 +2113,7 @@ loader.load('3D_Model/mario_arma.glb', (gltf) => {
   const baseScale = 5;
   
   // --- 1) On stocke la position de référence dans userData ---
-  perso_1.userData.refPos = { x: 1280, y: 0.9 * 551 };
+  perso_1.userData.refPos = { x: 980, y: 0.9 * 551 };
   perso_1.userData.refScale = baseScale;
   
   // --- 2) On calcule les ratios actuels ---
@@ -2148,7 +2150,7 @@ loader.load('3D_Model/mario_arma.glb', (gltf) => {
   // --- Ajout de la voiture 1 dans la sélection pour la caméra 0 ---
   selection_perso[0] = perso_1;
   const label = createSelectionLabel();
-  label.name = "selection_label";
+  label.name = "selection_label"+0;
   if (perso_1.spec == 1) {
     label.position.set(0, 20, 0); // positionner le label au-dessus du perso
   } else if (perso_1.spec == 2) {
@@ -2169,7 +2171,7 @@ loader.load('3D_Model/car_5.glb', (gltf) => {
   const baseScale = 100;
   
   // --- 1) On stocke la position de référence dans userData ---
-  perso_2.userData.refPos = { x: 1080, y: 0.9 * 551 };
+  perso_2.userData.refPos = { x: 1180, y: 0.9 * 551 };
   perso_2.userData.refScale = baseScale;
   
   // --- 2) On calcule les ratios actuels ---
@@ -2204,9 +2206,102 @@ loader.load('3D_Model/car_5.glb', (gltf) => {
   scene_select.add(perso_2);
 });
 
+
+let perso_3;
+loader.load('3D_Model/car_5.glb', (gltf) => {
+  perso_3 = gltf.scene;
+  perso_3.name = "perso";
+  perso_3.spec = 3;
+  
+  // Échelle de référence
+  const baseScale = 100;
+  
+  // --- 1) On stocke la position de référence dans userData ---
+  perso_3.userData.refPos = { x: 1380, y: 0.9 * 551 };
+  perso_3.userData.refScale = baseScale;
+  
+  // --- 2) On calcule les ratios actuels ---
+  const { ratioW, ratioH } = getScaleRatios();
+  // Souvent, on prend un ratio “minimum” ou “maximum” pour l’échelle 3D.
+  const ratioMin = Math.min(ratioW, ratioH);
+  
+  // --- 3) Positionner le modèle en tenant compte des ratios ---
+  const scaledX = perso_3.userData.refPos.x * ratioW;
+  const scaledY = perso_3.userData.refPos.y * ratioH;
+  perso_3.position.set(scaledX, scaledY, 0);
+  
+  // --- 4) Ajuster la taille (scale) du modèle si besoin ---
+  perso_3.scale.set(baseScale * ratioMin, baseScale * ratioMin, baseScale * ratioMin);
+  
+  // --- 5) Orientations, matériaux, etc. ---
+  perso_3.rotation.x = Math.PI / 10;
+  perso_3.traverse((child) => {
+    if (child.isMesh) {
+      child.frustumCulled = false;
+      // Remplacer le matériau PBR par un MeshBasicMaterial
+      const oldMat = child.material;
+      let map = oldMat.map || null;
+      child.material = new THREE.MeshBasicMaterial({
+        map: map,
+        color: oldMat.color || 0xffffff,
+        side: THREE.DoubleSide,
+      });
+    }
+  });
+
+  scene_select.add(perso_3);
+});
+
+let perso_4;
+loader.load('3D_Model/car_5.glb', (gltf) => {
+  perso_4 = gltf.scene;
+  perso_4.name = "perso";
+  perso_4.spec = 4;
+  
+  // Échelle de référence
+  const baseScale = 100;
+  
+  // --- 1) On stocke la position de référence dans userData ---
+  perso_4.userData.refPos = { x: 1580, y: 0.9 * 551 };
+  perso_4.userData.refScale = baseScale;
+  
+  // --- 2) On calcule les ratios actuels ---
+  const { ratioW, ratioH } = getScaleRatios();
+  // Souvent, on prend un ratio “minimum” ou “maximum” pour l’échelle 3D.
+  const ratioMin = Math.min(ratioW, ratioH);
+  
+  // --- 3) Positionner le modèle en tenant compte des ratios ---
+  const scaledX = perso_4.userData.refPos.x * ratioW;
+  const scaledY = perso_4.userData.refPos.y * ratioH;
+  perso_4.position.set(scaledX, scaledY, 0);
+  
+  // --- 4) Ajuster la taille (scale) du modèle si besoin ---
+  perso_4.scale.set(baseScale * ratioMin, baseScale * ratioMin, baseScale * ratioMin);
+  
+  // --- 5) Orientations, matériaux, etc. ---
+  perso_4.rotation.x = Math.PI / 10;
+  perso_4.traverse((child) => {
+    if (child.isMesh) {
+      child.frustumCulled = false;
+      // Remplacer le matériau PBR par un MeshBasicMaterial
+      const oldMat = child.material;
+      let map = oldMat.map || null;
+      child.material = new THREE.MeshBasicMaterial({
+        map: map,
+        color: oldMat.color || 0xffffff,
+        side: THREE.DoubleSide,
+      });
+    }
+  });
+
+  scene_select.add(perso_4);
+});
+
 function rotatePerso(perso){
   if(perso) perso.rotation.y += 0.02;
 }
+
+var thePlayerSelect = 0;
 
 // Liste des plans (images) à afficher
 const plansList = [
@@ -2248,6 +2343,15 @@ const plansList = [
   {name: "tour_1",image: "Image/tour_1.png", fitByHeight: false,size: 0.2, x: 2200,y: 551,z: 0,selection: true},
   {name: "tour_2",image: "Image/tour_2.png", fitByHeight: false,size: 0.2, x: 2560,y: 551,z: 0,selection: true},
   {name: "tour_3",image: "Image/tour_3.png", fitByHeight: false,size: 0.2, x: 2920,y: 551,z: 0,selection: true},
+
+  {name: "player_1",image: "Image/joueur1_unselect.png", image_select:"Image/joueur1_select.png",
+    fitByHeight: false,size: 0.3, x: 705,y: -152+651,z: 0,selection: true},
+  {name: "player_2",image: "Image/joueur2_unselect.png", image_select:"Image/joueur2_select.png",
+    fitByHeight: false,size: 0.3, x: 705,y: -102+651,z: 0,selection: true},
+  {name: "player_3",image: "Image/joueur3_unselect.png", image_select:"Image/joueur3_select.png",
+    fitByHeight: false,size: 0.3, x: 705,y: -52+651,z: 0,selection: true},
+  {name: "player_4",image: "Image/joueur4_unselect.png", image_select:"Image/joueur4_select.png",
+    fitByHeight: false,size: 0.3, x: 705,y: -2+651,z: 0,selection: true},
 ];
 
 // Indice du plan actuel pour la navigation
@@ -2447,17 +2551,27 @@ function onWindowResize() {
   }
 
   if (perso_2) {
-
-    // On reprend les coordonnées de référence stockées
     const refX = perso_2.userData.refPos.x;
     const refY = perso_2.userData.refPos.y;
     const refScale = perso_2.userData.refScale;
-    
-    // Mise à jour de la position
     perso_2.position.set(refX * ratioW, refY * ratioH, 0);
-    
-    // Mise à jour de l'échelle
     perso_2.scale.set(refScale * ratioMin, refScale * ratioMin, refScale * ratioMin);
+  }
+
+  if (perso_3) {
+    const refX = perso_3.userData.refPos.x;
+    const refY = perso_3.userData.refPos.y;
+    const refScale = perso_3.userData.refScale;
+    perso_3.position.set(refX * ratioW, refY * ratioH, 0);
+    perso_3.scale.set(refScale * ratioMin, refScale * ratioMin, refScale * ratioMin);
+  }
+
+  if (perso_4) {
+    const refX = perso_4.userData.refPos.x;
+    const refY = perso_4.userData.refPos.y;
+    const refScale = perso_4.userData.refScale;
+    perso_4.position.set(refX * ratioW, refY * ratioH, 0);
+    perso_4.scale.set(refScale * ratioMin, refScale * ratioMin, refScale * ratioMin);
   }
 }
 
@@ -2485,7 +2599,7 @@ updateCameraZ();
  * 6) Survol de la souris & clic
  ****************************************/
 document.addEventListener("mousemove", onMouseMove);
-document.addEventListener("click", (ev) => onMouseClick(ev,0));
+document.addEventListener("click", (ev) => onMouseClick(ev, thePlayerSelect));
 const hoveredPersos = new Set(); // contient les objets "perso" actuellement survolés
 
 function onMouseMove(event) {
@@ -2541,6 +2655,12 @@ function grossissmentPerso(){
       if(obj.spec == 2){
         var targetScale = hoveredPersos.has(obj) ? 700 : 500;
       } 
+      if(obj.spec == 3){
+        var targetScale = hoveredPersos.has(obj) ? 700 : 500;
+      } 
+      if(obj.spec == 4){
+        var targetScale = hoveredPersos.has(obj) ? 700 : 500;
+      } 
       // Lerp progressif vers l’échelle cible
       obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
       obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
@@ -2594,28 +2714,39 @@ function onMouseClick(event, camIndex) {
       if (selection_perso[camIndex] === perso) {
         // Dé-sélection : on retire le perso pour cette caméra
         selection_perso[camIndex] = null;
-        const label = perso.getObjectByName("selection_label");
+        const label = perso.getObjectByName("selection_label"+camIndex);
         if (label) perso.remove(label);
       } else {
         // S'il existe déjà une sélection pour cette caméra, on la dé-sélectionne d'abord
         if (selection_perso[camIndex]) {
           const oldPerso = selection_perso[camIndex];
-          const oldLabel = oldPerso.getObjectByName("selection_label");
+          const oldLabel = oldPerso.getObjectByName("selection_label"+camIndex);
           if (oldLabel) oldPerso.remove(oldLabel);
         }
         // On ajoute le nouveau perso pour cette caméra
         selection_perso[camIndex] = perso;
-        const label = createSelectionLabel();
-        label.name = "selection_label";
+        const label = createSelectionLabel(camIndex);
+        label.name = "selection_label"+camIndex;
         if(perso.spec == 1){
           label.position.set(0, 20, 0); // positionner le label au-dessus du perso
-          customSkin[0] = 1;
+          customSkin[camIndex] = 1;
         }
         if(perso.spec == 2){
-          customSkin[0] = 2;
+          customSkin[camIndex] = 2;
           label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
           label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
         } 
+        if(perso.spec == 3){
+          customSkin[camIndex] = 3;
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        } 
+        if(perso.spec == 4){
+          customSkin[camIndex] = 4;
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        }
+        label.position.y = label.position.y * (camIndex == 0 ? 1 :(1 + 0.3*camIndex));
         perso.add(label);
       }
     }
@@ -2673,13 +2804,13 @@ document.addEventListener("click", onMouseClickPlan);
 
 
 
-function createSelectionLabel() {
+function createSelectionLabel(color = 0) {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 64;
 
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#007bff"; // bleu
+  ctx.fillStyle = color == 0 ? "#007bff" : color == 1 ? "#00ff0d" : color == 2 ? "#ffe600" : "#ff0000"; // bleu
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#ffffff";
   ctx.font = "28px Arial";
@@ -2788,6 +2919,18 @@ function selection_travel(imageName) {
     nb_tour_players = [0,0,0,0];
     courseState = "start";
     statusWolrd = "runsolo";
+  }
+  else if(imageName === "player_1"){
+    thePlayerSelect = 0;
+  }
+  else if(imageName === "player_2"){
+    thePlayerSelect = 1;
+  }
+  else if(imageName === "player_3"){
+    thePlayerSelect = 2;
+  }
+  else if(imageName === "player_4"){
+    thePlayerSelect = 3;
   }
   else {
     console.log("Action par défaut pour", imageName);
