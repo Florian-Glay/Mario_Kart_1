@@ -2825,6 +2825,81 @@ function createSelectionLabel(color = 0) {
   return sprite;
 }
 
+// function slider(){
+var ratioW = window.innerWidth;
+var ratioH = window.innerHeight;
+
+// Créez un groupe pour le slider
+const sliderGroup = new THREE.Group();
+
+// Création de la barre du slider
+const sliderBaseGeometry = new THREE.PlaneGeometry(200, 20);
+const sliderBaseMaterial = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
+const sliderBase = new THREE.Mesh(sliderBaseGeometry, sliderBaseMaterial);
+sliderBase.position.set(0, 0, 0); // position relative au groupe
+sliderGroup.add(sliderBase);
+
+// Création du curseur
+const cursorGeometry = new THREE.SphereGeometry(10, 16, 16);
+const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+const sliderCursor = new THREE.Mesh(cursorGeometry, cursorMaterial);
+// Position initiale du curseur (par exemple, sur le côté gauche de la barre)
+sliderCursor.position.set(-90, 0, 1); // 1 unité devant la barre pour éviter le z-fighting
+sliderGroup.add(sliderCursor);
+
+// Positionnez le groupe dans scene_select aux coordonnées calculées
+// Ici, la barre se place à (ratioW * 1, ratioH * -1, camera_select.position.z)
+sliderGroup.position.set(ratioW * 1, ratioH * -1, 0);
+
+// Ajoutez le groupe uniquement à scene_select
+scene_select.add(sliderGroup);
+// }
+// slider();
+
+// Variable globale qui contiendra le nombre de players (2, 3 ou 4)
+let numPlayers = 2; // valeur initiale
+
+// --- Interactivité du slider ---
+// On ajoute un écouteur sur l'élément DOM du renderer (qui affiche scene_select)
+// pour détecter les clics sur la barre
+renderer.domElement.addEventListener('pointerdown', onSliderPointerDown);
+
+function onSliderPointerDown(event) {
+  // Calcul des coordonnées normalisées du clic
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+  
+  // Création d'un raycaster à partir de camera_select
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera_select);
+  
+  // On vérifie les intersections avec la barre (sliderBase)
+  const intersects = raycaster.intersectObject(sliderBase);
+  if (intersects.length > 0) {
+    // On récupère le point d'intersection (en coordonnées mondiales)
+    const intersectPoint = intersects[0].point.clone();
+    // Convertir ce point en coordonnées locales dans le groupe sliderGroup
+    sliderGroup.worldToLocal(intersectPoint);
+    // L'axe X de la barre s'étend de -100 à +100 (puisque la largeur est 200)
+    const localX = intersectPoint.x;
+    // Définir 3 zones discrètes :
+    // Zone gauche : x < -33.3   --> numPlayers = 2, curseur à -90
+    // Zone centrale : -33.3 <= x < 33.3   --> numPlayers = 3, curseur à 0
+    // Zone droite : x >= 33.3   --> numPlayers = 4, curseur à 90
+    if (localX < -33.3) {
+      numPlayers = 2;
+      sliderCursor.position.x = -90;
+    } else if (localX < 33.3) {
+      numPlayers = 3;
+      sliderCursor.position.x = 0;
+    } else {
+      numPlayers = 4;
+      sliderCursor.position.x = 90;
+    }
+    console.log("Nombre de joueurs : ", numPlayers);
+  }
+}
 
 
 
