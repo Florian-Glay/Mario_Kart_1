@@ -196,7 +196,6 @@ scene_select.add(dirLight_2);
 
 // Background
 scene.background = new THREE.TextureLoader().load('Image/smoky-watercolor-cloud-background.jpg');
-
 // === Monde physique ===
 const world = new CANNON.World({
   gravity: new CANNON.Vec3(0, -9.82, 0)
@@ -747,7 +746,7 @@ function tourUpdate(boxCarMesh){
       console.log("Tour Complet");
       nb_tour_players[id] += 1;
       console.log(nb_tour_players);
-      if(statusWolrd >= "runsolo"){
+      if(statusWolrd == "runsolo"){
         if(nb_tour_players[0] == nbTour){
           statusWolrd = "select";
         }
@@ -901,6 +900,10 @@ function playerPosReset(){
 
   tour = [[false,false,false,false],[false,false,false,false],[false,false,false,false],[false,false,false,false]];
   nb_tour_players = [0,0,0,0];
+  boxBody.position.set(start_place[11].x, -20, start_place[11].z);
+  boxBody_2.position.set(start_place[10].x, -20, start_place[10].z);
+  boxBody_3.position.set(start_place[9].x, -20, start_place[9].z);
+  boxBody_4.position.set(start_place[8].x, -20, start_place[8].z);
 }
 
 
@@ -1031,6 +1034,12 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
   const baseSpeed = 200 * level_cube;
   const rotationSpeed = 0.7 * level_cube;
   const driftRotationSpeed = rotationSpeed * 1.5; // Vous pouvez ajuster ce multiplicateur
+  if(nb_tour_players[player-1] >= nbTour){
+    boxCarBody.velocity.x = 0;
+    boxCarBody.velocity.z = 0;
+    boxCarBody.angularVelocity.y = 0;
+    return;
+  }
 
   // Calcul de la direction de la caméra
   let camDirection = new THREE.Vector3();
@@ -1809,7 +1818,8 @@ function gameRun_2(){
     cube.mesh.position.copy(cube.body.position);
     cube.mesh.quaternion.copy(cube.body.quaternion);
   });
-  
+  tourUpdate(boxMesh);
+  tourUpdate(boxMesh_2);
   // Mise à jour de la caméra
   updateCamera(boxMesh, camera, level_cube);
   updateCamera(boxMesh_2, camera_2, level_cube);
@@ -1899,6 +1909,9 @@ function gameRun_3(){
     cube.mesh.quaternion.copy(cube.body.quaternion);
   });
   
+  tourUpdate(boxMesh);
+  tourUpdate(boxMesh_2);
+  tourUpdate(boxMesh_3);
   // Mise à jour de la caméra
   updateCamera(boxMesh, camera, level_cube);
   updateCamera(boxMesh_2, camera_2, level_cube);
@@ -1989,6 +2002,7 @@ function gameRun_4(){
     kart_4.position.copy(boxMesh_4.position).add(localOffset_4);
     kart_4.quaternion.copy(boxMesh_4.quaternion);
   }
+  
 
   // Synchronisation du sol
   groundMesh.position.copy(groundBody.position);
@@ -2000,6 +2014,10 @@ function gameRun_4(){
     cube.mesh.quaternion.copy(cube.body.quaternion);
   });
   
+  tourUpdate(boxMesh);
+  tourUpdate(boxMesh_2);
+  tourUpdate(boxMesh_3);
+  tourUpdate(boxMesh_4);
   // Mise à jour de la caméra
   updateCamera(boxMesh, camera, level_cube);
   updateCamera(boxMesh_2, camera_2, level_cube);
@@ -2302,6 +2320,7 @@ function rotatePerso(perso){
 }
 
 var thePlayerSelect = 0;
+var nbOfPlayers = 1;
 
 // Liste des plans (images) à afficher
 const plansList = [
@@ -2352,6 +2371,13 @@ const plansList = [
     fitByHeight: false,size: 0.3, x: 705,y: -52+651,z: 0,selection: true},
   {name: "player_4",image: "Image/joueur4_unselect.png", image_select:"Image/joueur4_select.png",
     fitByHeight: false,size: 0.3, x: 705,y: -2+651,z: 0,selection: true},
+
+  {name: "2p",image: "Image/2p_unselect.png", image_select:"Image/2p_select.png",
+    fitByHeight: false,size: 0.5, x: 1280,y: -450,z: 0,selection: true},
+  {name: "3p",image: "Image/3p_unselect.png", image_select:"Image/3p_select.png",
+    fitByHeight: false,size: 0.5, x: 1280,y: -570,z: 0,selection: true},
+  {name: "4p",image: "Image/4p_unselect.png", image_select:"Image/4p_select.png",
+    fitByHeight: false,size: 0.5, x: 1280,y: -690,z: 0,selection: true},
 ];
 
 // Indice du plan actuel pour la navigation
@@ -2691,7 +2717,6 @@ function onMouseClick(event, camIndex) {
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera_select);
   const intersects = raycaster.intersectObjects(scene_select.children, true);
-
   if (intersects.length > 0) {
     const topObj = intersects[0].object;
     // Si l'objet est sélectionnable, on appelle la fonction selection_travel()
@@ -2825,113 +2850,6 @@ function createSelectionLabel(color = 0) {
   return sprite;
 }
 
-var ratioW = window.innerWidth;
-var ratioH = window.innerHeight;
-
-// Créez un groupe pour le slider
-const sliderGroup = new THREE.Group();
-
-// Création de la barre du slider
-const sliderBaseGeometry = new THREE.PlaneGeometry(200, 20);
-const sliderBaseMaterial = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
-const sliderBase = new THREE.Mesh(sliderBaseGeometry, sliderBaseMaterial);
-sliderBase.position.set(0, 0, 0); // position relative au groupe
-sliderGroup.add(sliderBase);
-
-// Création du curseur
-const cursorGeometry = new THREE.SphereGeometry(10, 16, 16);
-const cursorMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
-const sliderCursor = new THREE.Mesh(cursorGeometry, cursorMaterial);
-// Position initiale du curseur (par exemple, sur le côté gauche de la barre)
-sliderCursor.position.set(-90, 0, 1); // 1 unité devant la barre pour éviter le z-fighting
-sliderGroup.add(sliderCursor);
-
-// Positionnez le groupe dans scene_select aux coordonnées calculées
-// Ici, la barre se place à (ratioW * 1, ratioH * -1, camera_select.position.z)
-sliderGroup.position.set(ratioW * 1, ratioH * -1, 0);
-
-// Ajoutez le groupe uniquement à scene_select
-scene_select.add(sliderGroup);
-
-
-// Variable globale qui contiendra le nombre de players (2, 3 ou 4)
-let numPlayers = 2;
-
-// Variable pour gérer le drag du curseur
-let isDragging = false;
-
-// Écouteurs pour gérer le drag sur le slider
-renderer.domElement.addEventListener('pointerdown', onSliderPointerDown);
-renderer.domElement.addEventListener('pointermove', onSliderPointerMove);
-renderer.domElement.addEventListener('pointerup', onSliderPointerUp);
-
-function onSliderPointerDown(event) {
-  // Conversion des coordonnées de la souris en coordonnées normalisées
-  const mouse = new THREE.Vector2();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-  
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, camera_select);
-  // Vérifier si la barre du slider est cliquée
-  const intersects = raycaster.intersectObject(sliderBase);
-  if (intersects.length > 0) {
-    isDragging = true;
-    updateSliderCursorPosition(intersects[0].point);
-  }
-}
-
-function onSliderPointerMove(event) {
-  if (!isDragging) return;
-  const mouse = new THREE.Vector2();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-  
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, camera_select);
-  const intersects = raycaster.intersectObject(sliderBase);
-  if (intersects.length > 0) {
-    updateSliderCursorPosition(intersects[0].point);
-  }
-}
-
-function onSliderPointerUp(event) {
-  if (!isDragging) return;
-  isDragging = false;
-  
-  // Lorsque le curseur est relâché, on le "snappe" sur une position discrète
-  // Dans l'espace local du groupe, la barre s'étend de -100 à +100 en X.
-  // Définissons trois zones :
-  //   - Si x < -33.3, alors numPlayers = 2 et le curseur se place à -90.
-  //   - Si -33.3 <= x < 33.3, alors numPlayers = 3 et le curseur se place à 0.
-  //   - Si x >= 33.3, alors numPlayers = 4 et le curseur se place à 90.
-  const localX = sliderCursor.position.x;
-  let snappedX;
-  if (localX < -33.3) {
-    snappedX = -90;
-    numPlayers = 2;
-  } else if (localX < 33.3) {
-    snappedX = 0;
-    numPlayers = 3;
-  } else {
-    snappedX = 90;
-    numPlayers = 4;
-  }
-  sliderCursor.position.x = snappedX;
-  console.log("Nombre de players :", numPlayers);
-}
-
-function updateSliderCursorPosition(worldPoint) {
-  // Convertir le point d'intersection en coordonnées locales du sliderGroup
-  const localPoint = worldPoint.clone();
-  sliderGroup.worldToLocal(localPoint);
-  // La barre s'étend de -100 à +100 en X (largeur = 200)
-  const clampedX = Math.max(-100, Math.min(100, localPoint.x));
-  sliderCursor.position.x = clampedX;
-  // Vous pouvez, si vous le souhaitez, mettre à jour numPlayers de manière continue ici.
-  // Ici, nous attendons le pointerup pour effectuer le snapping discret.
-}
-
 
 /****************************************
  * 7) Fonction déclenchée au clic sur une image sélectionnable
@@ -2977,7 +2895,7 @@ function selection_travel(imageName) {
     isTransitioning = true;
   }
   else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc" || imageName === "vitesse") {
-    if(menu_name === "solo"){menu_name = "perso_solo";}
+    if(menu_name === "solo"){menu_name = "perso_solo"; nbOfPlayers = 1;}
     if(menu_name === "multi"){menu_name = "nb_multi";}
     console.log(imageName);
     if(imageName === "50cc") level_cube = 1;
@@ -2985,6 +2903,7 @@ function selection_travel(imageName) {
     if(imageName === "150cc") level_cube = 2;
     if(imageName === "200cc") level_cube = 2.5;
     // Préparation de la transition : la caméra va vers (x, y)
+    updatePlayerSelectionVisibility(nbOfPlayers);
     transitionStart.copy(camera_select.position);
     transitionTarget.set(ratioW * 1, menu_name == "perso_solo" ? ratioH * 1 : ratioH * -1, camera_select.position.z);
     transitionElapsed = 0;
@@ -2997,6 +2916,10 @@ function selection_travel(imageName) {
     if(menu_name == "perso_solo"){selection_travel("solo")}
     if(menu_name == "tour_solo"){
       menu_name = "perso_solo";
+      selection_travel("vitesse");
+    }
+    if(menu_name == "choice_multi"){
+      menu_name = "nb_multi";
       selection_travel("vitesse");
     }
   }
@@ -3023,7 +2946,18 @@ function selection_travel(imageName) {
     selection_travel("home");
     nb_tour_players = [0,0,0,0];
     courseState = "start";
-    statusWolrd = "runsolo";
+    if(nbOfPlayers == 1){
+      statusWolrd = "runsolo";
+    }
+    else if(nbOfPlayers == 2){
+      statusWolrd = "runsplit";
+    }
+    else if(nbOfPlayers == 3){
+      statusWolrd = "runsplit3";
+    }
+    else if(nbOfPlayers == 4){
+      statusWolrd = "runsplit4";
+    }
   }
   else if(imageName === "player_1"){
     thePlayerSelect = 0;
@@ -3037,9 +2971,46 @@ function selection_travel(imageName) {
   else if(imageName === "player_4"){
     thePlayerSelect = 3;
   }
+  else if (imageName === "2p" || imageName === "3p" || imageName === "4p") {
+    menu_name = "choice_multi";
+    console.log(imageName);
+    if(imageName === "2p") nbOfPlayers = 2;
+    if(imageName === "3p") nbOfPlayers = 3;
+    if(imageName === "4p") nbOfPlayers = 4;
+    console.log(nbOfPlayers);
+    // Préparation de la transition : la caméra va vers (x, y)
+    updatePlayerSelectionVisibility(nbOfPlayers);
+    transitionStart.copy(camera_select.position);
+    transitionTarget.set(ratioW * 1, ratioH * 1, camera_select.position.z);
+    transitionElapsed = 0;
+    isTransitioning = true;
+  }
   else {
     console.log("Action par défaut pour", imageName);
   }
+}
+
+function updatePlayerSelectionVisibility(nbOfPlayers) {
+  thePlayerSelect = 0; // Réinitialiser la sélection du joueur
+  scene_select.children.forEach(obj => {
+    if (obj.userData && obj.userData.name) {
+      const name = obj.userData.name;
+      // Pour les images
+      if (name.startsWith("player_")) {
+        const num = parseInt(name.split("_")[1], 10);
+        obj.visible = (num <= nbOfPlayers);
+      }
+    }
+    // Pour les modèles 3D
+    if (obj.name === "perso") {
+      for(let i = 0; i < 4; i ++){
+        const label = obj.getObjectByName("selection_label" + i);
+        if (label) {
+          label.visible = (obj.spec <= nbOfPlayers);
+        }
+      }
+    }
+  });
 }
 
 function theUpdateGame(deltaTime){
@@ -3385,17 +3356,17 @@ function updateAIVehicle(ai, deltaTime) {
       ai.tasksCompleted[cpName] = true;
       ai.wasOnCheckpoint = true;
       ai.tasksCompleted[cpName] = true;
-      console.log("Step", cpName, "validé");
+      //console.log("Step", cpName, "validé");
     }
     else {
       ai.wasOnCheckpoint = false;
     }
   }
   if (ai.checkpoints.every(cp => ai.tasksCompleted[cp])) {
-    console.log("Tour terminé par l'IA");
+    //console.log("Tour terminé par l'IA");
     ai.tour += 1;
     if(ai.tour >= nbTour){
-      console.log("Course terminé par l'IA");
+      //console.log("Course terminé par l'IA");
       ai.finished = true;
       ai.phantom = true;
       ai.model.traverse((child) => {
@@ -3417,6 +3388,7 @@ function updateAIVehicle(ai, deltaTime) {
 //
 // =============================================================================
 
+
 // === Boucle d'animation ===
 const timeStep = 1 / 60;
 const clock = new THREE.Clock();
@@ -3427,18 +3399,30 @@ function animate() {
   updateVehicleCoordinates();
   
   if(statusWolrd === "select"){
-    if(aiVehicles.length != 0){
-      removeAllAIVehicles();
+    if(courseState !== "menu_select"){
+      nbOfPlayers = 1; // Nombre de joueurs (1 ou 2)
+      courseState = "menu_select";
+      menu_name = "home";
+      nbOfPlayers = 1;
+      thePlayerSelect = 0;
+      updatePlayerSelectionVisibility(nbOfPlayers);
       playerPosReset();
+      camera_select.position.set(0, 0, camera_select.position.z); // Ajustez la position selon vos besoins
     }
-    particulesSelectMenu();
-    grossissmentPerso();
-    select_menu(deltaTime);
-    //animateCameraSelect();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
-    renderer.render(scene_select, camera_select);
+    else{
+      if(aiVehicles.length != 0){
+        removeAllAIVehicles();
+      }
+      particulesSelectMenu();
+      grossissmentPerso();
+      select_menu(deltaTime);
+      //animateCameraSelect();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+      renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+      renderer.render(scene_select, camera_select);
+    }
+    
   }
   else if (statusWolrd === "runsolo") {
     theUpdateGame(deltaTime);
