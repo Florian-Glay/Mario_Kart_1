@@ -1711,6 +1711,7 @@ function gameRun(){
   }
   if(courseState == "run"){
     updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
+    updateXboxControls();
   } 
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
@@ -1783,6 +1784,7 @@ function gameRun_2(){
   if(courseState == "run"){
     updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
     updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
+    updateXboxControls();
   }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
@@ -1869,6 +1871,7 @@ function gameRun_3(){
     updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
     updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
     updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
+    updateXboxControls();
   }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
@@ -1964,6 +1967,7 @@ function gameRun_4(){
     updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
     updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
     updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4);
+    updateXboxControls();
   }
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
@@ -2378,11 +2382,13 @@ const plansList = [
     fitByHeight: false,size: 0.5, x: 1280,y: -570,z: 0,selection: true},
   {name: "4p",image: "Image/4p_unselect.png", image_select:"Image/4p_select.png",
     fitByHeight: false,size: 0.5, x: 1280,y: -690,z: 0,selection: true},
+
+  {name: "mannette_1",image: "Image/pro_control_upscaled.png",fitByHeight: false,size: 0.2, x: -200,y: 1202,z: 0,selection: false},
+  {name: "mannette_2",image: "Image/pro_control_upscaled.png",fitByHeight: false,size: 0.2, x: 200,y: 1202,z: 0,selection: false},
+  {name: "mannette_3",image: "Image/pro_control_upscaled.png",fitByHeight: false,size: 0.2, x: -200,y: 1002,z: 0,selection: false},
+  {name: "mannette_4",image: "Image/pro_control_upscaled.png",fitByHeight: false,size: 0.2, x: 200,y: 1002,z: 0,selection: false},
 ];
 
-// Indice du plan actuel pour la navigation
-let planIndex = 0;
-let selection_var = "";
 // Variable globale pour la sélection du tour (seulement une sélection)
 let selected_plan = null;
 
@@ -3385,6 +3391,174 @@ function updateAIVehicle(ai, deltaTime) {
 // =============================================================================
 //
 //            ================= FIN AI ========================
+//
+// =============================================================================
+
+
+// =============================================================================
+//
+//            ================ Controlleurs ==================
+//
+// =============================================================================
+
+let gamepadIndex1 = null;
+let gamepadIndex2 = null;
+let gamepadIndex3 = null;
+let gamepadIndex4 = null;
+
+// Détection de la connexion des manettes
+window.addEventListener("gamepadconnected", (e) => {
+  const gp = e.gamepad;
+  console.log("Manette connectée :", gp);
+  if (gamepadIndex1 === null) {
+    gamepadIndex1 = gp.index;
+  } else if (gamepadIndex2 === null) {
+    gamepadIndex2 = gp.index;
+  } else if (gamepadIndex3 === null) {
+    gamepadIndex3 = gp.index;
+  } else if (gamepadIndex4 === null) {
+    gamepadIndex4 = gp.index;
+  }
+});
+
+window.addEventListener("gamepaddisconnected", (e) => {
+  const gp = e.gamepad;
+  console.log("Manette déconnectée :", gp);
+  if (gamepadIndex1 === gp.index) {
+    gamepadIndex1 = null;
+  } else if (gamepadIndex2 === gp.index) {
+    gamepadIndex2 = null;
+  } else if (gamepadIndex3 === gp.index) {
+    gamepadIndex3 = null;
+  } else if (gamepadIndex4 === gp.index) {
+    gamepadIndex4 = null;
+  }
+});
+
+// Mise à jour des contrôles pour deux joueurs
+function updateXboxControls() {
+  const gamepads = navigator.getGamepads();
+
+  // PLAYER 1
+  if (gamepadIndex1 !== null && gamepads[gamepadIndex1]) {
+    const gp1 = gamepads[gamepadIndex1];
+    const turnAxis1 = gp1.axes[0]; // Joystick gauche horizontal
+    const forward1 = gp1.buttons[1].pressed;  // Bouton B pour avancer
+    const backward1 = gp1.buttons[0].pressed; // Bouton A pour reculer
+    let drift1 = gp1.buttons[7].pressed;        // Bouton RT pour drift
+    const keyLeft1 = (turnAxis1 < -0.2);
+    const keyRight1 = (turnAxis1 > 0.2);
+
+    if (drift1) {
+      if (keyLeft1) {
+        isDriftingLeft = true;
+        isDriftingRight = false;
+      } else if (keyRight1) {
+        isDriftingRight = true;
+        isDriftingLeft = false;
+      } else {
+        isDriftingLeft = false;
+        isDriftingRight = false;
+        drift1 = false;
+      }
+    } else {
+      isDriftingLeft = false;
+      isDriftingRight = false;
+    }
+    updateBoxControl(boxMesh, boxBody, camera, forward1, backward1, keyLeft1, keyRight1, timeStep, 1);
+  }
+
+  // PLAYER 2
+  if (gamepadIndex2 !== null && gamepads[gamepadIndex2]) {
+    const gp2 = gamepads[gamepadIndex2];
+    const turnAxis2 = gp2.axes[0];
+    const forward2 = gp2.buttons[1].pressed;
+    const backward2 = gp2.buttons[0].pressed;
+    let drift2 = gp2.buttons[7].pressed;
+    const keyLeft2 = (turnAxis2 < -0.2);
+    const keyRight2 = (turnAxis2 > 0.2);
+
+    if (drift2) {
+      if (keyLeft2) {
+        isDriftingLeft_2 = true;
+        isDriftingRight_2 = false;
+      } else if (keyRight2) {
+        isDriftingRight_2 = true;
+        isDriftingLeft_2 = false;
+      } else {
+        isDriftingLeft_2 = false;
+        isDriftingRight_2 = false;
+        drift2 = false;
+      }
+    } else {
+      isDriftingLeft_2 = false;
+      isDriftingRight_2 = false;
+    }
+    updateBoxControl(boxMesh_2, boxBody_2, camera_2, forward2, backward2, keyLeft2, keyRight2, timeStep, 2);
+  }
+
+  // PLAYER 3
+  if (gamepadIndex3 !== null && gamepads[gamepadIndex3]) {
+    const gp3 = gamepads[gamepadIndex3];
+    const turnAxis3 = gp3.axes[0];
+    const forward3 = gp3.buttons[1].pressed;
+    const backward3 = gp3.buttons[0].pressed;
+    let drift3 = gp3.buttons[7].pressed;
+    const keyLeft3 = (turnAxis3 < -0.2);
+    const keyRight3 = (turnAxis3 > 0.2);
+
+    if (drift3) {
+      if (keyLeft3) {
+        isDriftingLeft_3 = true;
+        isDriftingRight_3 = false;
+      } else if (keyRight3) {
+        isDriftingRight_3 = true;
+        isDriftingLeft_3 = false;
+      } else {
+        isDriftingLeft_3 = false;
+        isDriftingRight_3 = false;
+        drift3 = false;
+      }
+    } else {
+      isDriftingLeft_3 = false;
+      isDriftingRight_3 = false;
+    }
+    updateBoxControl(boxMesh_3, boxBody_3, camera_3, forward3, backward3, keyLeft3, keyRight3, timeStep, 3);
+  }
+
+  // PLAYER 4
+  if (gamepadIndex4 !== null && gamepads[gamepadIndex4]) {
+    const gp4 = gamepads[gamepadIndex4];
+    const turnAxis4 = gp4.axes[0];
+    const forward4 = gp4.buttons[1].pressed;
+    const backward4 = gp4.buttons[0].pressed;
+    let drift4 = gp4.buttons[7].pressed;
+    const keyLeft4 = (turnAxis4 < -0.2);
+    const keyRight4 = (turnAxis4 > 0.2);
+
+    if (drift4) {
+      if (keyLeft4) {
+        isDriftingLeft_4 = true;
+        isDriftingRight_4 = false;
+      } else if (keyRight4) {
+        isDriftingRight_4 = true;
+        isDriftingLeft_4 = false;
+      } else {
+        isDriftingLeft_4 = false;
+        isDriftingRight_4 = false;
+        drift4 = false;
+      }
+    } else {
+      isDriftingLeft_4 = false;
+      isDriftingRight_4 = false;
+    }
+    updateBoxControl(boxMesh_4, boxBody_4, camera_4, forward4, backward4, keyLeft4, keyRight4, timeStep, 4);
+  }
+}
+
+// =============================================================================
+//
+//            ================ FIN Controlleurs ==================
 //
 // =============================================================================
 
