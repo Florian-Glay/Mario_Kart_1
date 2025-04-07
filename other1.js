@@ -839,6 +839,11 @@ var boostMultiplier_4 = 0;
 var gotBoost_4 = false;
 var hadBoost_4 = false;
 
+var startBoost_1 = 0;
+var startBoost_2 = 0;
+var startBoost_3 = 0;
+var startBoost_4 = 0;
+
 function playerPosReset(){
   lastLeftKeyReleaseTime = 0;
   lastRightKeyReleaseTime = 0;
@@ -883,6 +888,11 @@ function playerPosReset(){
   boostMultiplier_4 = 0;
   gotBoost_4 = false;
   hadBoost_4 = false;
+
+  startBoost_1 = 0;
+  startBoost_2 = 0;
+  startBoost_3 = 0;
+  startBoost_4 = 0;
 
   boxBody.angularVelocity.y = 0;
   boxBody_2.angularVelocity.y = 0;
@@ -1041,7 +1051,7 @@ var player_state = ["run","run","run","run"];
 // === Mise à jour des contrôles de la boîte ===
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
-function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight,deltaTime, player) {
+function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft, keyRight,deltaTime, player,courseElapsedTime,courseStartDelay) {
   const baseSpeed = 200 * level_cube;
   const rotationSpeed = 0.7 * level_cube;
   const driftRotationSpeed = rotationSpeed * 1.5; // Vous pouvez ajuster ce multiplicateur
@@ -1080,10 +1090,65 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
     let movement = new THREE.Vector3(0, 0, 0);
     
     if (keyMove) {
+      if(courseState == "load"){
+        if(player == 1) startBoost_1 += timeStep;
+        if(player == 2) startBoost_2 += timeStep;
+        if(player == 3) startBoost_3 += timeStep;
+        if(player == 4) startBoost_4 += timeStep;
+        if (courseElapsedTime > 3 && courseElapsedTime < courseStartDelay) {
+          spawnBoostParticles(boxMesh);
+          if(player == 1){
+            startBoost_1 <= 2 ? boostMultiplier += timeStep/2 : boostMultiplier = 0;
+            boostTimer = boostDuration;
+            hadBoost = true;
+          }
+          if(player == 2){
+            startBoost_2 <= 2 ? boostMultiplier_2 += timeStep/2 : boostMultiplier_2 = 0;
+            boostTimer_2 = boostDuration;
+            hadBoost_2 = true;
+          }
+          if(player == 3){
+            startBoost_3 <= 2 ? boostMultiplier_3 += timeStep/2 : boostMultiplier_3 = 0;
+            boostTimer_3 = boostDuration;
+            hadBoost_3 = true;
+          }
+          if(player == 4){
+            startBoost_4 <= 2 ? boostMultiplier_4 += timeStep/2 : boostMultiplier_4 = 0;
+            boostTimer_4 = boostDuration;
+            hadBoost_4 = true;
+          }
+        }
+      }
       let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
       currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
       // Multiplie par deltaTime pour obtenir un déplacement en fonction du temps
       movement.add(camDirection.clone().multiplyScalar(currentSpeed * deltaTime*40));
+    }
+    else if(courseState == "load"){
+      if(player == 1){
+        startBoost_1 = 0;
+        boostMultiplier = 0;
+        boostTimer = 0;
+        hadBoost = false;
+      }
+      if(player == 2){
+        startBoost_2 = 0;
+        boostMultiplier_2 = 0;
+        boostTimer_2 = 0;
+        hadBoost_2 = false;
+      }
+      if(player == 3){
+        startBoost_3 = 0;
+        boostMultiplier_3 = 0;
+        boostTimer_3 = 0;
+        hadBoost_3 = false;
+      }
+      if(player == 4){
+        startBoost_4 = 0;
+        boostMultiplier_4 = 0;
+        boostTimer_4 = 0;
+        hadBoost_4 = false;
+      }
     }
     
     if (keyBack) {
@@ -1092,23 +1157,25 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
       movement.add(camDirection.clone().multiplyScalar(-currentSpeed * deltaTime*40));
     }
     
-    // Mise à jour de la vélocité du corps (en supposant que le moteur physique attend des m/s)
-    boxCarBody.velocity.x = movement.x;
-    boxCarBody.velocity.z = movement.z;
+    if(courseState == "run"){
+      // Mise à jour de la vélocité du corps (en supposant que le moteur physique attend des m/s)
+      boxCarBody.velocity.x = movement.x;
+      boxCarBody.velocity.z = movement.z;
+    }
     
     if (keyMove || keyBack || keyLeft || keyRight) {
       boxCarBody.wakeUp();
     }
     
     // Gestion de la rotation/dérapage
-    if (keyLeft) {
+    if (courseState == "run" && keyLeft) {
       if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3) || (player == 4 && isDriftingLeft_4)) {
         boxCarBody.angularVelocity.y = driftRotationSpeed;
         spawnDriftParticle(boxCarMesh, 'left',player);
       } else {
         boxCarBody.angularVelocity.y = rotationSpeed;
       }
-    } else if (keyRight) {
+    } else if (courseState == "run" && keyRight) {
       if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3) || (player == 4 && isDriftingRight_4)) {
         boxCarBody.angularVelocity.y = -driftRotationSpeed;
         spawnDriftParticle(boxCarMesh, 'right',player);
@@ -1240,6 +1307,7 @@ function evaluateTestSurfaceGhost(boxCarMesh, direction, maxDistance = 150, step
 
 
 function boostUpdate(dlt) {
+  if(courseState == "load") return;
   const deltaTime = dlt;
 
   // PLAYER 1
@@ -1271,10 +1339,16 @@ function boostUpdate(dlt) {
       hadBoost = false;
       driftActiveTime = 0;
     }
-    boostMultiplier = 1; // boost de 2x
+    if(startBoost_1 == 0){
+      boostMultiplier = 1; // boost de 2x
+    }
   }
   else {
     boostMultiplier *= 0.9; // pas de boost
+    if(startBoost_1 != 0){
+      startBoost_1 = 0;
+      hadBoost = false;
+    }
   }
 
   // PLAYER 2
@@ -1306,10 +1380,14 @@ function boostUpdate(dlt) {
       hadBoost_2 = false;
       driftActiveTime_2 = 0;
     }
-    boostMultiplier_2 = 1; // boost de 2x
+    if(startBoost_2 == 0) boostMultiplier_2 = 1; // boost de 2x
   }
   else {
     boostMultiplier_2 *= 0.9; // pas de boost
+    if(startBoost_2 != 0){
+      startBoost_2 = 0;
+      hadBoost_2 = false;
+    }
   }
 
   // PLAYER 3
@@ -1341,10 +1419,14 @@ function boostUpdate(dlt) {
       hadBoost_3 = false;
       driftActiveTime_3 = 0;
     }
-    boostMultiplier_3 = 1; // boost de 2x
+    if(startBoost_3 == 0) boostMultiplier_3 = 1; // boost de 2x
   }
   else {
     boostMultiplier_3 *= 0.9; // pas de boost
+    if(startBoost_3 != 0){
+      startBoost_3 = 0;
+      hadBoost_3 = false;
+    }
   }
 
   // PLAYER 4
@@ -1376,10 +1458,14 @@ function boostUpdate(dlt) {
       hadBoost_4 = false;
       driftActiveTime_4 = 0;
     }
-    boostMultiplier_4 = 1; // boost de 2x
+    if(startBoost_4 == 0) boostMultiplier_4 = 1; // boost de 2x
   }
   else {
     boostMultiplier_4 *= 0.9; // pas de boost
+    if(startBoost_4 != 0){
+      startBoost_4 = 0;
+      hadBoost_4 = false;
+    }
   }
 }
 
@@ -1670,6 +1756,26 @@ function updateDriftParticles(dlt) {
       driftParticles.splice(i, 1);
     }
   }
+}
+
+function spawnBoostParticles(carMesh) {
+  // Exemple simple : créer une particule rouge derrière la voiture
+  const geometry = new THREE.SphereGeometry(1, 8, 8);
+  const material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 });
+  const particle = new THREE.Mesh(geometry, material);
+  
+  // Positionner la particule derrière la voiture : par exemple, 5 unités derrière, légèrement aléatoire
+  const offset = new THREE.Vector3(Math.random() * 2 >= 1 ? -5 : 5, Math.random() * 6 - 1, Math.random() * -4 - 15);
+  offset.applyQuaternion(carMesh.quaternion);
+  particle.position.copy(carMesh.position).add(offset);
+  
+  // Ajouter la particule à la scène (ou à un groupe de particules)
+  scene.add(particle);
+  
+  // Optionnel : supprimer la particule après un court délai
+  setTimeout(() => {
+    scene.remove(particle);
+  }, 200);
 }
 
 // ===================================================================================================
@@ -2057,17 +2163,19 @@ function gameRun(){
 
     courseState = "load";
   }
+  updateXboxControls(courseElapsedTime,courseStartDelay,1);
+
   if (courseState == "load") {
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+    // Pendant la phase load, on force la voiture à rester immobile
+    boxBody.velocity.set(0, 0, 0);
+    boxBody.angularVelocity.set(0, 0, 0);
   }
-  if(courseState == "run"){
-    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-    updateXboxControls();
-  } 
+
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -2129,18 +2237,22 @@ function gameRun_2(){
 
     courseState = "load";
   }
+  
+  updateXboxControls(courseElapsedTime,courseStartDelay,2);
+
   if (courseState == "load") {
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+    // Pendant la phase load, on force la voiture à rester immobile
+    boxBody.velocity.set(0, 0, 0);
+    boxBody.angularVelocity.set(0, 0, 0);
+    boxBody_2.velocity.set(0, 0, 0);
+    boxBody_2.angularVelocity.set(0, 0, 0);
   }
-  if(courseState == "run"){
-    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
-    updateXboxControls();
-  }
+
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -2215,19 +2327,24 @@ function gameRun_3(){
 
     courseState = "load";
   }
+  
+  updateXboxControls(courseElapsedTime,courseStartDelay,3);
+
   if (courseState == "load") {
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+    // Pendant la phase load, on force la voiture à rester immobile
+    boxBody.velocity.set(0, 0, 0);
+    boxBody.angularVelocity.set(0, 0, 0);
+    boxBody_2.velocity.set(0, 0, 0);
+    boxBody_2.angularVelocity.set(0, 0, 0);
+    boxBody_3.velocity.set(0, 0, 0);
+    boxBody_3.angularVelocity.set(0, 0, 0);
   }
-  if(courseState == "run"){
-    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
-    updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
-    updateXboxControls();
-  }
+
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -2310,20 +2427,26 @@ function gameRun_4(){
 
     courseState = "load";
   }
+
+  updateXboxControls(courseElapsedTime,courseStartDelay,4);
+
   if (courseState == "load") {
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+    // Pendant la phase load, on force la voiture à rester immobile
+    boxBody.velocity.set(0, 0, 0);
+    boxBody.angularVelocity.set(0, 0, 0);
+    boxBody_2.velocity.set(0, 0, 0);
+    boxBody_2.angularVelocity.set(0, 0, 0);
+    boxBody_3.velocity.set(0, 0, 0);
+    boxBody_3.angularVelocity.set(0, 0, 0);
+    boxBody_4.velocity.set(0, 0, 0);
+    boxBody_4.angularVelocity.set(0, 0, 0);
   }
-  if(courseState == "run"){
-    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1);
-    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2);
-    updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3);
-    updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4);
-    updateXboxControls();
-  }
+  
   // Synchronisation du mesh de la boîte avec son corps physique
   boxMesh.position.copy(boxBody.position);
   boxMesh.quaternion.copy(boxBody.quaternion);
@@ -3791,11 +3914,11 @@ window.addEventListener("gamepaddisconnected", (e) => {
 });
 
 // Mise à jour des contrôles pour deux joueurs
-function updateXboxControls() {
+function updateXboxControls(courseElapsedTime,courseStartDelay,nbPlayers) {
   const gamepads = navigator.getGamepads();
 
   // PLAYER 1
-  if (gamepadIndex1 !== null && gamepads[gamepadIndex1]) {
+  if (gamepadIndex1 !== null && gamepads[gamepadIndex1] && nbPlayers >= 1) {
     const gp1 = gamepads[gamepadIndex1];
     const turnAxis1 = gp1.axes[0]; // Joystick gauche horizontal
     const forward1 = gp1.buttons[1].pressed;  // Bouton B pour avancer
@@ -3820,11 +3943,14 @@ function updateXboxControls() {
       isDriftingLeft = false;
       isDriftingRight = false;
     }
-    updateBoxControl(boxMesh, boxBody, camera, forward1, backward1, keyLeft1, keyRight1, timeStep, 1);
+    updateBoxControl(boxMesh, boxBody, camera, forward1, backward1, keyLeft1, keyRight1, timeStep, 1,courseElapsedTime,courseStartDelay);
+  }
+  else if(nbPlayers >= 1){
+    updateBoxControl(boxMesh,boxBody,camera,keys.z,keys.s,keys.q,keys.d,timeStep,1,courseElapsedTime,courseStartDelay);
   }
 
   // PLAYER 2
-  if (gamepadIndex2 !== null && gamepads[gamepadIndex2]) {
+  if (gamepadIndex2 !== null && gamepads[gamepadIndex2] && nbPlayers >= 2) {
     const gp2 = gamepads[gamepadIndex2];
     const turnAxis2 = gp2.axes[0];
     const forward2 = gp2.buttons[1].pressed;
@@ -3849,11 +3975,14 @@ function updateXboxControls() {
       isDriftingLeft_2 = false;
       isDriftingRight_2 = false;
     }
-    updateBoxControl(boxMesh_2, boxBody_2, camera_2, forward2, backward2, keyLeft2, keyRight2, timeStep, 2);
+    updateBoxControl(boxMesh_2, boxBody_2, camera_2, forward2, backward2, keyLeft2, keyRight2, timeStep, 2,courseElapsedTime,courseStartDelay);
+  }
+  else if(nbPlayers >= 2){
+    updateBoxControl(boxMesh_2,boxBody_2,camera_2,keys.o,keys.l,keys.k,keys.m,timeStep,2,courseElapsedTime,courseStartDelay);
   }
 
   // PLAYER 3
-  if (gamepadIndex3 !== null && gamepads[gamepadIndex3]) {
+  if (gamepadIndex3 !== null && gamepads[gamepadIndex3] && nbPlayers >= 3) {
     const gp3 = gamepads[gamepadIndex3];
     const turnAxis3 = gp3.axes[0];
     const forward3 = gp3.buttons[1].pressed;
@@ -3878,11 +4007,14 @@ function updateXboxControls() {
       isDriftingLeft_3 = false;
       isDriftingRight_3 = false;
     }
-    updateBoxControl(boxMesh_3, boxBody_3, camera_3, forward3, backward3, keyLeft3, keyRight3, timeStep, 3);
+    updateBoxControl(boxMesh_3, boxBody_3, camera_3, forward3, backward3, keyLeft3, keyRight3, timeStep, 3,courseElapsedTime,courseStartDelay);
+  }
+  else if(nbPlayers >= 3){
+    updateBoxControl(boxMesh_3,boxBody_3,camera_3,keys.g,keys.b,keys.v,keys.n,timeStep,3,courseElapsedTime,courseStartDelay);
   }
 
   // PLAYER 4
-  if (gamepadIndex4 !== null && gamepads[gamepadIndex4]) {
+  if (gamepadIndex4 !== null && gamepads[gamepadIndex4] && nbPlayers >= 4) {
     const gp4 = gamepads[gamepadIndex4];
     const turnAxis4 = gp4.axes[0];
     const forward4 = gp4.buttons[1].pressed;
@@ -3907,7 +4039,10 @@ function updateXboxControls() {
       isDriftingLeft_4 = false;
       isDriftingRight_4 = false;
     }
-    updateBoxControl(boxMesh_4, boxBody_4, camera_4, forward4, backward4, keyLeft4, keyRight4, timeStep, 4);
+    updateBoxControl(boxMesh_4, boxBody_4, camera_4, forward4, backward4, keyLeft4, keyRight4, timeStep, 4,courseElapsedTime,courseStartDelay);
+  }
+  else if(nbPlayers >= 4){
+    updateBoxControl(boxMesh_4,boxBody_4,camera_4,keys.arrowup,keys.arrowdown,keys.arrowleft,keys.arrowright,timeStep,4,courseElapsedTime,courseStartDelay);
   }
 }
 
