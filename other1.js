@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as CANNON from 'cannon-es';
 
+const timeStep = 1 / 60;
 // === CHAT ===
 // Variable pour stocker la valeur du chat
 let chatValue = "";
@@ -10,6 +11,11 @@ var statusWolrd = "select";
 var courseState = "start"
 var courseElapsedTime = 0;
 var courseStartDelay = 5;
+
+// Variables globales pour les timers par joueur (pour le changement d'offset)
+let cameraTransitionTimer = [null, null, null, null];
+// Timer global pour tous les joueurs
+let globalCameraTransitionTimer = null;
 
 var level_cube = 1;
 var nbTour = 1;
@@ -748,22 +754,22 @@ function tourUpdate(boxCarMesh){
       console.log(nb_tour_players);
       if(statusWolrd == "runsolo"){
         if(nb_tour_players[0] == nbTour){
-          statusWolrd = "select";
+          //statusWolrd = "select";
         }
       }
       if(statusWolrd == "runsplit"){
         if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour){
-          statusWolrd = "select";
+          //statusWolrd = "select";
         }
       }
       if(statusWolrd == "runsplit3"){
         if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour && nb_tour_players[2] >= nbTour){
-          statusWolrd = "select";
+          //statusWolrd = "select";
         }
       }
       if(statusWolrd == "runsplit4"){
         if(nb_tour_players[0] >= nbTour && nb_tour_players[1] >= nbTour && nb_tour_players[2] >= nbTour && nb_tour_players[3] >= nbTour){
-          statusWolrd = "select";
+          //statusWolrd = "select";
         }
       }
     } 
@@ -904,6 +910,9 @@ function playerPosReset(){
   boxBody_2.position.set(start_place[10].x, -20, start_place[10].z);
   boxBody_3.position.set(start_place[9].x, -20, start_place[9].z);
   boxBody_4.position.set(start_place[8].x, -20, start_place[8].z);
+  player_state = ["run","run","run","run"];
+  cameraTransitionTimer = [null, null, null, null];
+  globalCameraTransitionTimer = null;
 }
 
 
@@ -1027,6 +1036,8 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
+var player_state = ["run","run","run","run"];
+
 // === Mise à jour des contrôles de la boîte ===
 // Avec Z et S, la boîte est déplacée selon la direction de la caméra.
 // Avec Q et D, une rotation est appliquée.
@@ -1034,78 +1045,197 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
   const baseSpeed = 200 * level_cube;
   const rotationSpeed = 0.7 * level_cube;
   const driftRotationSpeed = rotationSpeed * 1.5; // Vous pouvez ajuster ce multiplicateur
-  if(nb_tour_players[player-1] >= nbTour){
-    boxCarBody.velocity.x = 0;
-    boxCarBody.velocity.z = 0;
-    boxCarBody.angularVelocity.y = 0;
+  if(nb_tour_players[player-1] >= nbTour && player_state[player-1] != "ghost"){
+    // boxCarBody.velocity.x = 0;
+    // boxCarBody.velocity.z = 0;
+    // boxCarBody.angularVelocity.y = 0;
+    player_state[player-1] = "ghost";
     return;
   }
+  if(player_state[player-1] == "run"){
+    // Calcul de la direction de la caméra
+    let camDirection = new THREE.Vector3();
+    cam.getWorldDirection(camDirection);
+    camDirection.y = 0;
+    camDirection.normalize();
+    if (isCarOnTerrain("boostTrap",boxCarMesh)) {
+      if(player == 1){
+        boostTimer = boostDuration;
+        hadBoost = true;
+      }
+      if(player == 2){
+        boostTimer_2 = boostDuration;
+        hadBoost_2 = true;
+      }
+      if(player == 3){
+        boostTimer_3 = boostDuration;
+        hadBoost_3 = true;
+      }
+      if(player == 4){
+        boostTimer_4 = boostDuration;
+        hadBoost_4 = true;
+      }
+    }
+    
+    let movement = new THREE.Vector3(0, 0, 0);
+    
+    if (keyMove) {
+      let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
+      currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
+      // Multiplie par deltaTime pour obtenir un déplacement en fonction du temps
+      movement.add(camDirection.clone().multiplyScalar(currentSpeed * deltaTime*40));
+    }
+    
+    if (keyBack) {
+      let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
+      currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
+      movement.add(camDirection.clone().multiplyScalar(-currentSpeed * deltaTime*40));
+    }
+    
+    // Mise à jour de la vélocité du corps (en supposant que le moteur physique attend des m/s)
+    boxCarBody.velocity.x = movement.x;
+    boxCarBody.velocity.z = movement.z;
+    
+    if (keyMove || keyBack || keyLeft || keyRight) {
+      boxCarBody.wakeUp();
+    }
+    
+    // Gestion de la rotation/dérapage
+    if (keyLeft) {
+      if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3) || (player == 4 && isDriftingLeft_4)) {
+        boxCarBody.angularVelocity.y = driftRotationSpeed;
+        spawnDriftParticle(boxCarMesh, 'left',player);
+      } else {
+        boxCarBody.angularVelocity.y = rotationSpeed;
+      }
+    } else if (keyRight) {
+      if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3) || (player == 4 && isDriftingRight_4)) {
+        boxCarBody.angularVelocity.y = -driftRotationSpeed;
+        spawnDriftParticle(boxCarMesh, 'right',player);
+      } else {
+        boxCarBody.angularVelocity.y = -rotationSpeed;
+      }
+    } else {
+      boxCarBody.angularVelocity.y *= 0.9;
+    }
+  }
+  else if (player_state[player-1] == "ghost"){ // =============================================================================
+    // Définir l'axe "avant" (axe local -Z)
+    const forward = new THREE.Vector3(0, 0, 1)
+      .applyQuaternion(boxCarMesh.quaternion)
+      .setY(0)
+      .normalize();
+    
+    // Distance de capteur pour la vérification : 200 unités
+    const sensorDistance = 200;
+    
+    // Vecteurs latéraux par rapport à forward
+    const leftVector = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
+    const rightVector = leftVector.clone().negate();
+    
+    // Par défaut, le kart souhaite avancer tout droit
+    let targetDir = forward.clone();
+    
+    // On évalue la couverture du road sur une surface de test dans la direction forward
+    const forwardScore = evaluateTestSurfaceGhost(boxCarMesh, forward, sensorDistance, 10);
+    const maxSamples = sensorDistance / 10; // par exemple 15 samples si step = 10 et sensorDistance = 150
+    
+    // Si la couverture du road devant est insuffisante, on regarde les côtés
+    if (forwardScore < 0.7 * maxSamples) { // seuil de 70%
+      const leftScore = evaluateTestSurfaceGhost(boxCarMesh, leftVector, sensorDistance, 10);
+      const rightScore = evaluateTestSurfaceGhost(boxCarMesh, rightVector, sensorDistance, 10);
+      if (leftScore > rightScore) {
+        targetDir.add(leftVector.clone().multiplyScalar(0.5));
+      } else {
+        targetDir.add(rightVector.clone().multiplyScalar(0.5));
+      }
+    } else {
+      // Sinon, on vérifie que le kart ne s'approche pas trop des bords
+      const leftSample = boxCarMesh.position.clone().add(leftVector.clone().multiplyScalar(sensorDistance));
+      const rightSample = boxCarMesh.position.clone().add(rightVector.clone().multiplyScalar(sensorDistance));
+      if (!isCarOnTerrain("road", { position: leftSample })) {
+        targetDir.add(rightVector.clone().multiplyScalar(0.1));
+      }
+      if (!isCarOnTerrain("road", { position: rightSample })) {
+        targetDir.add(leftVector.clone().multiplyScalar(0.1));
+      }
+    }
+    
+    // Vérification d'obstacles sur 150 unités devant
+    const obstacle = checkObstacleAheadGhost(boxCarMesh, sensorDistance);
+    if (obstacle) {
+      const toObs = obstacle.mesh.position.clone().sub(boxCarMesh.position).setY(0);
+      if (forward.dot(toObs.normalize()) > 0.9) { // obstacle quasiment en face
+        if (leftVector.dot(toObs) > 0) {
+          targetDir.add(rightVector.clone().multiplyScalar(0.4));
+        } else {
+          targetDir.add(leftVector.clone().multiplyScalar(0.4));
+        }
+      } else {
+        targetDir.sub(toObs.normalize().multiplyScalar(0.8));
+      }
+    }
+    
+    targetDir.normalize();
+    
+    // Calcul de la différence d'angle entre forward et targetDir
+    let angleDiff = forward.angleTo(targetDir);
+    const cross = new THREE.Vector3().crossVectors(forward, targetDir);
+    const sign = (cross.y >= 0 ? 1 : -1);
+    
+    // Si le score en avant est faible, limiter la rotation (virage trop serré)
+    let angularMultiplier = 0.3;
+    if (forwardScore < 0.7 * maxSamples) {
+      angularMultiplier = 0.5; // moins agressif si le road devant est pauvre
+    }
+    let desiredAngular = sign * angularMultiplier * level_cube * angleDiff;
+    const smoothing = 0.01; // interpolation pour rotation douce
+    boxCarBody.angularVelocity.y = THREE.MathUtils.lerp(boxCarBody.angularVelocity.y, desiredAngular, smoothing);
+  
+    // Interpolation douce de l'angular velocity
+    boxCarBody.angularVelocity.y = THREE.MathUtils.lerp(boxCarBody.angularVelocity.y, desiredAngular, smoothing);
+    // Application de la vitesse
+    let speedMultiplier = 1;
+    
+  
+    // Application de la vitesse dans la direction targetDir
+    const baseSpeed = 50 * level_cube * updateCarSpeed(boxCarMesh) * speedMultiplier;
+    boxCarBody.velocity.x = targetDir.x * baseSpeed;
+    boxCarBody.velocity.z = targetDir.z * baseSpeed;  
+  }
+}
 
-  // Calcul de la direction de la caméra
-  let camDirection = new THREE.Vector3();
-  cam.getWorldDirection(camDirection);
-  camDirection.y = 0;
-  camDirection.normalize();
-  if (isCarOnTerrain("boostTrap",boxCarMesh)) {
-    if(player == 1){
-      boostTimer = boostDuration;
-      hadBoost = true;
-    }
-    if(player == 2){
-      boostTimer_2 = boostDuration;
-      hadBoost_2 = true;
-    }
-    if(player == 3){
-      boostTimer_3 = boostDuration;
-      hadBoost_3 = true;
-    }
-    if(player == 4){
-      boostTimer_4 = boostDuration;
-      hadBoost_4 = true;
+// Fonction utilitaire pour détecter un obstacle devant l’IA
+function checkObstacleAheadGhost(boxCarMesh, distanceThreshold) {
+  const forward = new THREE.Vector3(0, 0, -1)
+    .applyQuaternion(boxCarMesh.quaternion)
+    .setY(0)
+    .normalize();
+  const aiPos = boxCarMesh.position.clone();
+  for (let cube of cubesList) {
+    const toCube = cube.mesh.position.clone().sub(aiPos);
+    if (toCube.length() < distanceThreshold) {
+      // Si l'obstacle est dans un cône d'environ 45° devant
+      if (forward.dot(toCube.normalize()) > 0.7) {
+        return cube;
+      }
     }
   }
-  
-  let movement = new THREE.Vector3(0, 0, 0);
-  
-  if (keyMove) {
-    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
-    // Multiplie par deltaTime pour obtenir un déplacement en fonction du temps
-    movement.add(camDirection.clone().multiplyScalar(currentSpeed * deltaTime*40));
-  }
-  
-  if (keyBack) {
-    let currentSpeed = baseSpeed * updateCarSpeed(boxCarMesh);
-    currentSpeed *= (1 + (player == 1 ? boostMultiplier : player == 2 ? boostMultiplier_2 : player == 3 ? boostMultiplier_3 : boostMultiplier_4));
-    movement.add(camDirection.clone().multiplyScalar(-currentSpeed * deltaTime*40));
-  }
-  
-  // Mise à jour de la vélocité du corps (en supposant que le moteur physique attend des m/s)
-  boxCarBody.velocity.x = movement.x;
-  boxCarBody.velocity.z = movement.z;
-  
-  if (keyMove || keyBack || keyLeft || keyRight) {
-    boxCarBody.wakeUp();
-  }
-  
-  // Gestion de la rotation/dérapage
-  if (keyLeft) {
-    if ((player == 1 && isDriftingLeft) || (player == 2 && isDriftingLeft_2) || (player == 3 && isDriftingLeft_3) || (player == 4 && isDriftingLeft_4)) {
-      boxCarBody.angularVelocity.y = driftRotationSpeed;
-      spawnDriftParticle(boxCarMesh, 'left',player);
-    } else {
-      boxCarBody.angularVelocity.y = rotationSpeed;
+  return null;
+}
+
+// Fonction d'évaluation de la surface de test sur une distance donnée
+function evaluateTestSurfaceGhost(boxCarMesh, direction, maxDistance = 150, step = 10) {
+  let score = 0;
+  const samples = Math.floor(maxDistance / step);
+  for (let i = 1; i <= samples; i++) {
+    const d = i * step;
+    const samplePos = boxCarMesh.position.clone().add(direction.clone().multiplyScalar(d));
+    if (isCarOnTerrain("road", { position: samplePos })) {
+      score++;
     }
-  } else if (keyRight) {
-    if ((player == 1 && isDriftingRight) || (player == 2 && isDriftingRight_2) || (player == 3 && isDriftingRight_3) || (player == 4 && isDriftingRight_4)) {
-      boxCarBody.angularVelocity.y = -driftRotationSpeed;
-      spawnDriftParticle(boxCarMesh, 'right',player);
-    } else {
-      boxCarBody.angularVelocity.y = -rotationSpeed;
-    }
-  } else {
-    boxCarBody.angularVelocity.y *= 0.9;
   }
+  return score;
 }
 
 
@@ -1253,15 +1383,240 @@ function boostUpdate(dlt) {
   }
 }
 
+// ===================== SCOREBOARD ===========================
+
+// Fonction qui crée le tableau de score
+function createScoreTable(scoreList) {
+  // Créer un conteneur pour le tableau et lui attribuer un id pour pouvoir le supprimer par la suite
+  const container = document.createElement("div");
+  container.id = "scoreTableContainer";
+  container.style.width = "70vw";        // 70% de la largeur de l'écran
+  container.style.height = "70vh";       // 70% de la hauteur de l'écran
+  container.style.position = "fixed";
+  container.style.top = "50%";
+  container.style.left = "50%";
+  container.style.transform = "translate(-50%, -60%)";
+  container.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; // fond blanc à 50% d'opacité
+  container.style.border = "2px solid rgba(0, 0, 0, 1)";          // bordure noire opaque
+  container.style.boxShadow = "0 0 20px rgba(0, 0, 0, 0.5)";        // ombre portée
+  container.style.borderRadius = "10px";
+  container.style.overflow = "auto";
+
+  // Opacité initiale à 0 et transition d'opacité sur 5 sec
+  container.style.opacity = "0";
+  container.style.transition = "opacity 5s";
+
+  // Créer le tableau HTML qui occupera 100% du conteneur
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.height = "100%";
+  table.style.borderCollapse = "collapse";
+
+  // Créer la ligne d'en-tête
+  const headerRow = document.createElement("tr");
+  
+  // Colonne de gauche pour le classement (10%)
+  const thLeft = document.createElement("th");
+  thLeft.textContent = "Classement";
+  thLeft.style.width = "10%";
+  thLeft.style.border = "1px solid rgba(0, 0, 0, 1)";
+  thLeft.style.padding = "10px";
+  thLeft.style.textAlign = "center";
+
+  // Colonne de droite pour le nom (90%)
+  const thRight = document.createElement("th");
+  thRight.textContent = "Joueur / Ordinateur";
+  thRight.style.width = "90%";
+  thRight.style.border = "1px solid rgba(0, 0, 0, 1)";
+  thRight.style.padding = "10px";
+  thRight.style.textAlign = "center";
+
+  headerRow.appendChild(thLeft);
+  headerRow.appendChild(thRight);
+  table.appendChild(headerRow);
+
+  // Créer une ligne pour chaque élément de la liste scoreList
+  scoreList.forEach(item => {
+    const row = document.createElement("tr");
+    
+    // Cellule gauche (classement)
+    const tdLeft = document.createElement("td");
+    tdLeft.textContent = item.rank;
+    tdLeft.style.width = "10%";
+    tdLeft.style.border = "1px solid rgba(0, 0, 0, 1)";
+    tdLeft.style.padding = "10px";
+    tdLeft.style.textAlign = "center";
+    
+    // Cellule droite (nom)
+    const tdRight = document.createElement("td");
+    tdRight.textContent = item.name;
+    tdRight.style.width = "90%";
+    tdRight.style.border = "1px solid rgba(0, 0, 0, 1)";
+    tdRight.style.padding = "10px";
+    tdRight.style.textAlign = "center";
+    
+    row.appendChild(tdLeft);
+    row.appendChild(tdRight);
+    table.appendChild(row);
+  });
+  
+  container.appendChild(table);
+  document.body.appendChild(container);
+
+  // Démarrer la transition de fade-in (après un court délai pour forcer le recalcul du style)
+  setTimeout(() => {
+    container.style.opacity = "1";
+  }, 50);
+}
+
+// Fonction pour supprimer le tableau de score s'il existe
+function removeScoreTable() {
+  const container = document.getElementById("scoreTableContainer");
+  if (container) {
+    container.parentNode.removeChild(container);
+  }
+}
+
+function updateTableFontSize() {
+  // Calculer par exemple 2% de la largeur de la fenêtre
+  const fontSize = window.innerWidth * 0.012;
+  
+  // Appliquer ce fontSize aux cellules du tableau
+  // On suppose que vos cellules ont une classe ou que vous pouvez les sélectionner
+  const cells = document.querySelectorAll("#scoreTableContainer td, #scoreTableContainer th");
+  cells.forEach(cell => {
+    cell.style.fontSize = fontSize + "px";
+  });
+}
+
+removeScoreTable();
+
+// Exemple d'utilisation :
+
+const scoreList = [
+  { name: "player_1", rank: 1 },
+  { name: "player_2", rank: 2 },
+  { name: "player_3", rank: 3 },
+  { name: "player_4", rank: 4 },
+  { name: "ordinateur_1", rank: 5 },
+  { name: "ordinateur_2", rank: 6 },
+  { name: "ordinateur_3", rank: 7 },
+  { name: "ordinateur_4", rank: 8 },
+  { name: "ordinateur_5", rank: 9 },
+  { name: "ordinateur_6", rank: 10 },
+  { name: "ordinateur_7", rank: 11 },
+  { name: "ordinateur_8", rank: 12 }
+];
+
+function createOkButton() {
+  // Créer l'élément image qui servira de bouton
+  const okButton = document.createElement("img");
+  okButton.src = "Image/ok_unselect.png";
+  okButton.id = "okButton"; // lui attribuer un id pour pouvoir le supprimer par la suite
+  
+  // Style du bouton pour le positionner en bas, centré et avec une taille adaptée
+  okButton.style.position = "fixed";
+  okButton.style.bottom = "5%";       // 5% du bas de la fenêtre (ajustable)
+  okButton.style.left = "50%";        // centré horizontalement
+  okButton.style.transform = "translateX(-50%)";
+  okButton.style.cursor = "pointer";
+  okButton.style.width = "30vw";     // ajustez la taille selon vos besoins
+  okButton.style.height = "auto";
+
+  // Opacité initiale et transition
+  okButton.style.opacity = "0";
+  okButton.style.transition = "opacity 5s";
+
+  // Changement d'image au survol et au retrait du survol
+  okButton.addEventListener("mouseover", () => {
+    okButton.src = "Image/ok_select.png";
+  });
+  okButton.addEventListener("mouseout", () => {
+    okButton.src = "Image/ok_unselect.png";
+  });
+
+  // Au clic : supprimer le tableau de score et changer le statusWolrd en "select"
+  okButton.addEventListener("click", () => {
+    removeScoreTable();
+    statusWolrd = "select";
+  });
+
+  // Ajout du bouton au document
+  document.body.appendChild(okButton);
+
+  // Lancer le fade-in
+  setTimeout(() => {
+    okButton.style.opacity = "1";
+  }, 50);
+}
+
+function removeOkButton() {
+  const okButton = document.getElementById("okButton");
+  if (okButton) {
+    okButton.parentNode.removeChild(okButton);
+  }
+}
+
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
-function updateCamera(boxCarMesh, camera, rot_speed) {
-  const localOffset = new THREE.Vector3(0, 32, -48);
-  const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
-  const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
-  camera.position.lerp(desiredCameraPos, 0.1 * rot_speed);
-  camera.lookAt(boxCarMesh.position);
+
+function updateCamera(boxCarMesh, camera, rot_speed, player = 1) {
+  if(player_state[player-1] == "run"){
+    const localOffset = new THREE.Vector3(0, 32, -48);
+    const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
+    const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
+    camera.position.lerp(desiredCameraPos, 0.1 * rot_speed);
+    camera.lookAt(boxCarMesh.position);
+  }
+  else{
+    var localOffset = new THREE.Vector3(0, 32, -48);
+    
+    // Si l'état n'est pas "run", on lance un timer (si ce n'est pas déjà lancé) pour attendre 5 sec
+    if (!cameraTransitionTimer[player-1]) {
+      cameraTransitionTimer[player-1] = timeStep;
+    }
+    else if(cameraTransitionTimer[player-1] > 5) {
+      cameraTransitionTimer[player-1] += timeStep;
+      let camOff = cameraTransitionTimer[player-1]*10 - 5 < 96 ? cameraTransitionTimer[player-1]*10 -5 : 96;
+      let camOff2 = cameraTransitionTimer[player-1]*10 - 5 < 96 ? cameraTransitionTimer[player-1]*3 - 5 : cameraTransitionTimer[player-1]*10 + 5 < 192 ? 25.25*2 - (cameraTransitionTimer[player-1]*3 - 5) : 0;
+      var localOffset = new THREE.Vector3(camOff2, 32, -48 + camOff);
+    }
+    else if(cameraTransitionTimer[player-1] <= 5){
+      cameraTransitionTimer[player-1] += timeStep;
+    }
+
+    const worldOffset = localOffset.clone().applyQuaternion(boxCarMesh.quaternion);
+    const desiredCameraPos = new THREE.Vector3().copy(boxCarMesh.position).add(worldOffset);
+    camera.position.lerp(desiredCameraPos, 0.1 * rot_speed);
+    camera.lookAt(boxCarMesh.position);
+
+    // Vérifier si TOUS les joueurs actifs (0 à nbOfPlayers-1) ne sont plus en "run"
+    let allNotRun = true;
+    for (let i = 0; i < nbOfPlayers; i++) {
+      if (player_state[i] === "run") {
+        allNotRun = false;
+        break;
+      }
+    }
+    
+    if (allNotRun) {
+      // Si aucun joueur n'est en "run" et que le timer global n'est pas déjà lancé...
+      if (!globalCameraTransitionTimer) globalCameraTransitionTimer = timeStep;
+      globalCameraTransitionTimer += timeStep;
+
+      if(globalCameraTransitionTimer > 5 && globalCameraTransitionTimer < 6){
+        // Appel de la fonction pour créer et afficher le tableau de score
+        createScoreTable(scoreList);
+        // Pour créer le bouton, appelez simplement :
+        createOkButton();
+        globalCameraTransitionTimer = 6;
+      }
+    }
+  }
 }
+
+
+
 
 
 let driftParticles = [];
@@ -1738,7 +2093,7 @@ function gameRun(){
   });
   tourUpdate(boxMesh);
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera, level_cube);
+  updateCamera(boxMesh, camera, level_cube,1);
   //updateVehicleCoordinates()
 
   // Mise à jour de toutes les IA
@@ -1823,8 +2178,8 @@ function gameRun_2(){
   tourUpdate(boxMesh);
   tourUpdate(boxMesh_2);
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera, level_cube);
-  updateCamera(boxMesh_2, camera_2, level_cube);
+  updateCamera(boxMesh, camera, level_cube,1);
+  updateCamera(boxMesh_2, camera_2, level_cube,2);
   //updateVehicleCoordinates()
 
   // Mise à jour de toutes les IA
@@ -1916,9 +2271,9 @@ function gameRun_3(){
   tourUpdate(boxMesh_2);
   tourUpdate(boxMesh_3);
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera, level_cube);
-  updateCamera(boxMesh_2, camera_2, level_cube);
-  updateCamera(boxMesh_3, camera_3, level_cube);
+  updateCamera(boxMesh, camera, level_cube,1);
+  updateCamera(boxMesh_2, camera_2, level_cube,2);
+  updateCamera(boxMesh_3, camera_3, level_cube,3);
   //updateVehicleCoordinates()
 
   // Mise à jour de toutes les IA
@@ -2023,10 +2378,10 @@ function gameRun_4(){
   tourUpdate(boxMesh_3);
   tourUpdate(boxMesh_4);
   // Mise à jour de la caméra
-  updateCamera(boxMesh, camera, level_cube);
-  updateCamera(boxMesh_2, camera_2, level_cube);
-  updateCamera(boxMesh_3, camera_3, level_cube);
-  updateCamera(boxMesh_4, camera_4, level_cube);
+  updateCamera(boxMesh, camera, level_cube,1);
+  updateCamera(boxMesh_2, camera_2, level_cube,2);
+  updateCamera(boxMesh_3, camera_3, level_cube,3);
+  updateCamera(boxMesh_4, camera_4, level_cube,4);
   //updateVehicleCoordinates()
 
   // Mise à jour de toutes les IA
@@ -2946,7 +3301,7 @@ function selection_travel(imageName) {
   else if(imageName === "tour_3"){
     nbTour = 3;
   }
-  else if(imageName === "ok_solo_tour"){
+  else if(imageName === "ok_solo_tour" && courseState != "run"){
     console.log("ok_solo_tour");
     menu_name = "home";
     selection_travel("home");
@@ -3556,6 +3911,28 @@ function updateXboxControls() {
   }
 }
 
+// Charger les textures une seule fois et les stocker dans des variables globales
+const loader_control = new THREE.TextureLoader();
+const connectedTexture = loader_control.load("Image/pro_control_upscaled.png");
+const disconnectedTexture = loader_control.load("Image/pro_control_upscaled_disconnect.png");
+
+function updateMannetteStatus() {
+  scene_select.children.forEach(ele => {
+    if (ele.userData && ele.userData.name) {
+      if (ele.userData.name === "mannette_1") {
+        ele.material.map = (gamepadIndex1 !== null) ? connectedTexture : disconnectedTexture;
+      } else if (ele.userData.name === "mannette_2") {
+        ele.material.map = (gamepadIndex2 !== null) ? connectedTexture : disconnectedTexture;
+      } else if (ele.userData.name === "mannette_3") {
+        ele.material.map = (gamepadIndex3 !== null) ? connectedTexture : disconnectedTexture;
+      } else if (ele.userData.name === "mannette_4") {
+        ele.material.map = (gamepadIndex4 !== null) ? connectedTexture : disconnectedTexture;
+      }
+      ele.material.needsUpdate = true;
+    }
+  });
+}
+
 // =============================================================================
 //
 //            ================ FIN Controlleurs ==================
@@ -3564,7 +3941,6 @@ function updateXboxControls() {
 
 
 // === Boucle d'animation ===
-const timeStep = 1 / 60;
 const clock = new THREE.Clock();
 function animate() {
   const deltaTime = clock.getDelta(); // temps écoulé depuis la dernière frame (en secondes)
@@ -3581,12 +3957,14 @@ function animate() {
       thePlayerSelect = 0;
       updatePlayerSelectionVisibility(nbOfPlayers);
       playerPosReset();
+      removeOkButton();
       camera_select.position.set(0, 0, camera_select.position.z); // Ajustez la position selon vos besoins
     }
     else{
       if(aiVehicles.length != 0){
         removeAllAIVehicles();
       }
+      updateMannetteStatus();
       particulesSelectMenu();
       grossissmentPerso();
       select_menu(deltaTime);
@@ -3746,4 +4124,5 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  updateTableFontSize();
 });
