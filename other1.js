@@ -12,6 +12,21 @@ var courseState = "start"
 var courseElapsedTime = 0;
 var courseStartDelay = 5;
 
+var scoreList = [
+  { name: "player_1", rank: 1 },
+  { name: "player_2", rank: 2 },
+  { name: "player_3", rank: 3 },
+  { name: "player_4", rank: 4 },
+  { name: "ordinateur_1", rank: 5 },
+  { name: "ordinateur_2", rank: 6 },
+  { name: "ordinateur_3", rank: 7 },
+  { name: "ordinateur_4", rank: 8 },
+  { name: "ordinateur_5", rank: 9 },
+  { name: "ordinateur_6", rank: 10 },
+  { name: "ordinateur_7", rank: 11 },
+  { name: "ordinateur_8", rank: 12 }
+];
+
 // Variables globales pour les timers par joueur (pour le changement d'offset)
 let cameraTransitionTimer = [null, null, null, null];
 // Timer global pour tous les joueurs
@@ -923,6 +938,7 @@ function playerPosReset(){
   player_state = ["run","run","run","run"];
   cameraTransitionTimer = [null, null, null, null];
   globalCameraTransitionTimer = null;
+  scoreList = []; //{ name: "player_1", rank: 1 },
 }
 
 
@@ -1059,6 +1075,7 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
     // boxCarBody.velocity.x = 0;
     // boxCarBody.velocity.z = 0;
     // boxCarBody.angularVelocity.y = 0;
+    scoreList.push({ name: "Player " + player, rank: scoreList.length+1 });
     player_state[player-1] = "ghost";
     return;
   }
@@ -1096,7 +1113,7 @@ function updateBoxControl(boxCarMesh, boxCarBody, cam, keyMove, keyBack, keyLeft
         if(player == 3) startBoost_3 += timeStep;
         if(player == 4) startBoost_4 += timeStep;
         if (courseElapsedTime > 3 && courseElapsedTime < courseStartDelay) {
-          spawnBoostParticles(boxMesh);
+          spawnBoostParticles(boxCarMesh);
           if(player == 1){
             startBoost_1 <= 2 ? boostMultiplier += timeStep/2 : boostMultiplier = 0;
             boostTimer = boostDuration;
@@ -1503,7 +1520,7 @@ function createScoreTable(scoreList) {
   
   // Colonne de gauche pour le classement (10%)
   const thLeft = document.createElement("th");
-  thLeft.textContent = "Classement";
+  thLeft.textContent = "Rank";
   thLeft.style.width = "10%";
   thLeft.style.border = "1px solid rgba(0, 0, 0, 1)";
   thLeft.style.padding = "10px";
@@ -1511,7 +1528,7 @@ function createScoreTable(scoreList) {
 
   // Colonne de droite pour le nom (90%)
   const thRight = document.createElement("th");
-  thRight.textContent = "Joueur / Ordinateur";
+  thRight.textContent = "Players";
   thRight.style.width = "90%";
   thRight.style.border = "1px solid rgba(0, 0, 0, 1)";
   thRight.style.padding = "10px";
@@ -1579,20 +1596,7 @@ removeScoreTable();
 
 // Exemple d'utilisation :
 
-const scoreList = [
-  { name: "player_1", rank: 1 },
-  { name: "player_2", rank: 2 },
-  { name: "player_3", rank: 3 },
-  { name: "player_4", rank: 4 },
-  { name: "ordinateur_1", rank: 5 },
-  { name: "ordinateur_2", rank: 6 },
-  { name: "ordinateur_3", rank: 7 },
-  { name: "ordinateur_4", rank: 8 },
-  { name: "ordinateur_5", rank: 9 },
-  { name: "ordinateur_6", rank: 10 },
-  { name: "ordinateur_7", rank: 11 },
-  { name: "ordinateur_8", rank: 12 }
-];
+
 
 function createOkButton() {
   // Créer l'élément image qui servira de bouton
@@ -3022,7 +3026,7 @@ function onWindowResize() {
   const ratioMin = Math.min(ratioW, ratioH);
 
   scene_select.children.forEach((child) => {
-    if (child.isMesh && child.userData) {
+    if (child.isMesh && child.userData && child.userData.name != "gamepadCursor") {
       const planData = child.userData;
       // Repositionnement
       const newX = plansList[planData.index].x * ratioW;
@@ -3852,15 +3856,35 @@ function updateAIVehicle(ai, deltaTime) {
     if(ai.tour >= nbTour){
       //console.log("Course terminé par l'IA");
       ai.finished = true;
+      if(ai.phantom != true){
+        scoreList.push({ name: "Bot " + (aiVehicles.indexOf(ai) + 1), rank: scoreList.length+1 });
+      }
       ai.phantom = true;
       ai.model.traverse((child) => {
         if (child.isMesh) {
           child.material.transparent = true;
           child.material.opacity = 0.5;
+
         }
       });
     }
     ai.checkpoints.forEach(cp => { ai.tasksCompleted[cp] = false; });
+  }
+
+  let finish = true;
+  for (let i = 0; i < nbOfPlayers; i++) {
+    if (player_state[i] === "run") {
+      finish = false;
+      break;
+    }
+  }
+
+  if(finish && ai.finished != true ){
+    ai.finished = true;
+    ai.phantom = true;
+    scoreList.push({ name: "Bot " + (aiVehicles.indexOf(ai) + 1), rank: scoreList.length+1 });
+    ai.tour = nbTour;
+    ai.checkpoints.forEach(cp => { ai.tasksCompleted[cp] = true; });
   }
 }
 
@@ -4068,6 +4092,93 @@ function updateMannetteStatus() {
   });
 }
 
+
+let gamepadCursor = null;
+
+function createGamepadCursor() {
+  // Création d'une sphère de rayon 10 (ajustez selon vos préférences)
+  const geometry = new THREE.SphereGeometry(10, 16, 16);
+  const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+  gamepadCursor = new THREE.Mesh(geometry, material);
+  gamepadCursor.userData = { name: "gamepadCursor" };
+  // Position initiale : par exemple, au centre de la scène de sélection (0,0,0)
+  gamepadCursor.position.set(0, 0, 0);
+  scene_select.add(gamepadCursor);
+}
+
+createGamepadCursor();
+
+// Déclarez un vecteur global pour stocker l'offset du pointeur par rapport à la caméra
+let pointerOffset = new THREE.Vector2(0, 0);
+
+function updateGamepadCursor(deltaTime) {
+  if (gamepadIndex1 !== null) {
+    const gamepad = navigator.getGamepads()[gamepadIndex1];
+    if (gamepad && gamepad.axes.length >= 2) {
+      const speed = 500; // Vitesse de déplacement du pointeur
+      // Mettre à jour l'offset en fonction des axes (inversez l'axe vertical si nécessaire)
+      pointerOffset.x += gamepad.axes[0] * speed * deltaTime;
+      pointerOffset.y += -gamepad.axes[1] * speed * deltaTime;
+      
+      // Définir des limites pour que le pointeur reste dans la vue de la caméra.
+      // Vous pouvez adapter ces valeurs ; ici nous choisissons 50 unités en X et en Y.
+      const limitX = window.innerWidth / 2;
+      const limitY = window.innerHeight / 2;
+      pointerOffset.x = Math.max(-limitX, Math.min(limitX, pointerOffset.x));
+      pointerOffset.y = Math.max(-limitY, Math.min(limitY, pointerOffset.y));
+    }
+  }
+  
+  // Positionner le pointeur : il suit la caméra en lui ajoutant l'offset
+  gamepadCursor.position.x = camera_select.position.x + pointerOffset.x;
+  gamepadCursor.position.y = camera_select.position.y + pointerOffset.y;
+  // Placer le pointeur un peu devant la caméra pour éviter tout z-fighting (par exemple, 10 unités devant)
+  gamepadCursor.position.z = 0;
+}
+
+
+function updateCursorClick() {
+  if (gamepadIndex1 !== null) {
+    const gamepad = navigator.getGamepads()[gamepadIndex1];
+    if (gamepad) {
+      // On suppose que le bouton "A" est à l'index 0
+      if (gamepad.buttons[0].pressed) {
+        console.log("click");
+        // Conversion de la position du pointeur à partir de sa position en monde vers les coordonnées NDC
+        let pointerPos = gamepadCursor.position.clone();
+        pointerPos.project(camera_select); // Converti en coordonnées normalisées
+        const pointer2D = new THREE.Vector2(pointerPos.x, pointerPos.y);
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer2D, camera_select);
+        // On interroge la scène de sélection
+        const intersects = raycaster.intersectObjects(scene_select.children, true);
+        if (intersects.length > 1) {
+          const topObj = intersects[1].object;
+          console.log("click on : ", topObj);
+          // Par exemple, si l'objet est interactif (vérification via userData.selection)
+          if (topObj.userData && topObj.userData.selection) {
+            // Vous pouvez appeler ici la fonction d'interaction, par exemple :
+            selection_travel(topObj.userData.name);
+            // Ou simuler un événement de clic sur l'objet.
+          }
+        }
+      }
+    }
+  }
+}
+
+
+function updateGamepadControls(deltaTime) {
+  // Mettez à jour les contrôles pour chaque manette/player (player 1, 2, 3, 4)
+  // ... Votre code de mise à jour pour updateBoxControl pour chaque joueur ...
+  updateGamepadCursor(deltaTime);
+  
+  // Vérifiez si le bouton de clic est appuyé via la manette
+  updateCursorClick();
+}
+
+
 // =============================================================================
 //
 //            ================ FIN Controlleurs ==================
@@ -4102,6 +4213,7 @@ function animate() {
       updateMannetteStatus();
       particulesSelectMenu();
       grossissmentPerso();
+      updateGamepadControls(deltaTime);
       select_menu(deltaTime);
       //animateCameraSelect();
       renderer.setSize(window.innerWidth, window.innerHeight);
