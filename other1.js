@@ -1647,6 +1647,14 @@ function removeOkButton() {
   }
 }
 
+function EndCourse(){
+  const gp1 = navigator.getGamepads()[gamepadIndex1];
+  if (gp1 && gp1.buttons[0].pressed) {
+    removeScoreTable();
+    statusWolrd = "select";
+  }
+}
+
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
 
@@ -1700,6 +1708,10 @@ function updateCamera(boxCarMesh, camera, rot_speed, player = 1) {
         // Pour créer le bouton, appelez simplement :
         createOkButton();
         globalCameraTransitionTimer = 6;
+      }
+
+      if(globalCameraTransitionTimer > 7){
+        EndCourse();
       }
     }
   }
@@ -2061,7 +2073,7 @@ function createOverlay() {
   }
   
 // Créer l'overlay dès le début
-createOverlay();
+//createOverlay();
 
 // Création des IA
 const aiVehicles = [];
@@ -2138,6 +2150,8 @@ function commandeInterpretor(){
 // Création de la voiture IA (par exemple, avec le modèle "mario_arma.glb")
 // Position de départ : { x: -2050, y: 0, z: 0 } et scale : 50 (à ajuster selon votre besoin)
 
+// Déclaration globale (en haut de votre script) pour conserver la référence au countdown
+let countdownImg = null;
 
 // === Fonction du Jeu en Run ===
 function gameRun(){
@@ -2169,15 +2183,66 @@ function gameRun(){
   }
   updateXboxControls(courseElapsedTime,courseStartDelay,1);
 
-  if (courseState == "load") {
+  if (courseState === "load") {
     courseElapsedTime += timeStep;
     console.log(courseElapsedTime);
-    if (courseElapsedTime >= courseStartDelay) {
-      courseState = "run";
+    if(courseElapsedTime < 0.5){
+      // Créer l'image si elle n'existe pas
+      if (!countdownImg) {
+        countdownImg = document.createElement("img");
+        countdownImg.id = "countdownImg";
+        // Positionnement centré au milieu de l'écran
+        countdownImg.style.position = "fixed";
+        countdownImg.style.top = "30%";
+        countdownImg.style.left = "50%";
+        countdownImg.style.transform = "translate(-50%, -50%)";
+        // La hauteur sera 50% de la hauteur de l'écran
+        countdownImg.style.height = "30vh";
+        // Opacité initiale à 1
+        countdownImg.style.opacity = "0.7";
+        // Vous pouvez ajouter une transition sur l'opacité pour le fade-out
+        countdownImg.style.transition = "opacity 1s ease-out";
+        document.body.appendChild(countdownImg);
+        console.log("IMG créée");
+      }
     }
+
     // Pendant la phase load, on force la voiture à rester immobile
     boxBody.velocity.set(0, 0, 0);
     boxBody.angularVelocity.set(0, 0, 0);
+
+    // Passage à l'état "run" lorsque le temps écoulé atteint le délai de départ
+    if (courseElapsedTime >= courseStartDelay) {
+      courseState = "run";
+    }
+  }
+
+  if(countdownImg){
+    // Mise à jour de la source de l'image en fonction du temps écoulé
+    if (courseElapsedTime > 5) {
+      countdownImg.src = "Image/decompte_0.png";
+      // Calculer une opacité dégressant de 1 à 0 pour courseElapsedTime allant de 5 à 6
+      let fade = 1 - (courseElapsedTime - 5);
+      courseElapsedTime += timeStep;
+      countdownImg.style.opacity = fade;
+      if (fade < 0){
+        // Optionnel : supprimer le compte à rebours du DOM une fois le départ effectif
+        if (countdownImg) {
+          countdownImg.parentNode.removeChild(countdownImg);
+          countdownImg = null;
+        }
+        fade = 0;
+      } 
+    } else if (courseElapsedTime > 4) {
+      countdownImg.src = "Image/decompte_1.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 3) {
+      countdownImg.src = "Image/decompte_2.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 2) {
+      countdownImg.src = "Image/decompte_3.png";
+      countdownImg.style.opacity = "0.7";
+    }
   }
 
   // Synchronisation du mesh de la boîte avec son corps physique
@@ -2250,11 +2315,61 @@ function gameRun_2(){
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+
+    if(courseElapsedTime < 0.5){
+      // Créer l'image si elle n'existe pas
+      if (!countdownImg) {
+        countdownImg = document.createElement("img");
+        countdownImg.id = "countdownImg";
+        // Positionnement centré au milieu de l'écran
+        countdownImg.style.position = "fixed";
+        countdownImg.style.top = "30%";
+        countdownImg.style.left = "50%";
+        countdownImg.style.transform = "translate(-50%, -50%)";
+        // La hauteur sera 50% de la hauteur de l'écran
+        countdownImg.style.height = "30vh";
+        // Opacité initiale à 1
+        countdownImg.style.opacity = "0.7";
+        // Vous pouvez ajouter une transition sur l'opacité pour le fade-out
+        countdownImg.style.transition = "opacity 1s ease-out";
+        document.body.appendChild(countdownImg);
+        console.log("IMG créée");
+      }
+    }
+
     // Pendant la phase load, on force la voiture à rester immobile
     boxBody.velocity.set(0, 0, 0);
     boxBody.angularVelocity.set(0, 0, 0);
     boxBody_2.velocity.set(0, 0, 0);
     boxBody_2.angularVelocity.set(0, 0, 0);
+  }
+
+  if(countdownImg){
+    // Mise à jour de la source de l'image en fonction du temps écoulé
+    if (courseElapsedTime > 5) {
+      countdownImg.src = "Image/decompte_0.png";
+      // Calculer une opacité dégressant de 1 à 0 pour courseElapsedTime allant de 5 à 6
+      let fade = 1 - (courseElapsedTime - 5);
+      courseElapsedTime += timeStep;
+      countdownImg.style.opacity = fade;
+      if (fade < 0){
+        // Optionnel : supprimer le compte à rebours du DOM une fois le départ effectif
+        if (countdownImg) {
+          countdownImg.parentNode.removeChild(countdownImg);
+          countdownImg = null;
+        }
+        fade = 0;
+      } 
+    } else if (courseElapsedTime > 4) {
+      countdownImg.src = "Image/decompte_1.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 3) {
+      countdownImg.src = "Image/decompte_2.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 2) {
+      countdownImg.src = "Image/decompte_3.png";
+      countdownImg.style.opacity = "0.7";
+    }
   }
 
   // Synchronisation du mesh de la boîte avec son corps physique
@@ -2340,6 +2455,27 @@ function gameRun_3(){
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+
+    if(courseElapsedTime < 0.5){
+      // Créer l'image si elle n'existe pas
+      if (!countdownImg) {
+        countdownImg = document.createElement("img");
+        countdownImg.id = "countdownImg";
+        // Positionnement centré au milieu de l'écran
+        countdownImg.style.position = "fixed";
+        countdownImg.style.top = "30%";
+        countdownImg.style.left = "50%";
+        countdownImg.style.transform = "translate(-50%, -50%)";
+        // La hauteur sera 50% de la hauteur de l'écran
+        countdownImg.style.height = "30vh";
+        // Opacité initiale à 1
+        countdownImg.style.opacity = "0.7";
+        // Vous pouvez ajouter une transition sur l'opacité pour le fade-out
+        countdownImg.style.transition = "opacity 1s ease-out";
+        document.body.appendChild(countdownImg);
+        console.log("IMG créée");
+      }
+    }
     // Pendant la phase load, on force la voiture à rester immobile
     boxBody.velocity.set(0, 0, 0);
     boxBody.angularVelocity.set(0, 0, 0);
@@ -2347,6 +2483,34 @@ function gameRun_3(){
     boxBody_2.angularVelocity.set(0, 0, 0);
     boxBody_3.velocity.set(0, 0, 0);
     boxBody_3.angularVelocity.set(0, 0, 0);
+  }
+
+  if(countdownImg){
+    // Mise à jour de la source de l'image en fonction du temps écoulé
+    if (courseElapsedTime > 5) {
+      countdownImg.src = "Image/decompte_0.png";
+      // Calculer une opacité dégressant de 1 à 0 pour courseElapsedTime allant de 5 à 6
+      let fade = 1 - (courseElapsedTime - 5);
+      courseElapsedTime += timeStep;
+      countdownImg.style.opacity = fade;
+      if (fade < 0){
+        // Optionnel : supprimer le compte à rebours du DOM une fois le départ effectif
+        if (countdownImg) {
+          countdownImg.parentNode.removeChild(countdownImg);
+          countdownImg = null;
+        }
+        fade = 0;
+      } 
+    } else if (courseElapsedTime > 4) {
+      countdownImg.src = "Image/decompte_1.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 3) {
+      countdownImg.src = "Image/decompte_2.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 2) {
+      countdownImg.src = "Image/decompte_3.png";
+      countdownImg.style.opacity = "0.7";
+    }
   }
 
   // Synchronisation du mesh de la boîte avec son corps physique
@@ -2440,6 +2604,28 @@ function gameRun_4(){
     if (courseElapsedTime >= courseStartDelay) {
       courseState = "run";
     }
+
+    if(courseElapsedTime < 0.5){
+      // Créer l'image si elle n'existe pas
+      if (!countdownImg) {
+        countdownImg = document.createElement("img");
+        countdownImg.id = "countdownImg";
+        // Positionnement centré au milieu de l'écran
+        countdownImg.style.position = "fixed";
+        countdownImg.style.top = "30%";
+        countdownImg.style.left = "50%";
+        countdownImg.style.transform = "translate(-50%, -50%)";
+        // La hauteur sera 50% de la hauteur de l'écran
+        countdownImg.style.height = "30vh";
+        // Opacité initiale à 1
+        countdownImg.style.opacity = "0.7";
+        // Vous pouvez ajouter une transition sur l'opacité pour le fade-out
+        countdownImg.style.transition = "opacity 1s ease-out";
+        document.body.appendChild(countdownImg);
+        console.log("IMG créée");
+      }
+    }
+
     // Pendant la phase load, on force la voiture à rester immobile
     boxBody.velocity.set(0, 0, 0);
     boxBody.angularVelocity.set(0, 0, 0);
@@ -2449,6 +2635,34 @@ function gameRun_4(){
     boxBody_3.angularVelocity.set(0, 0, 0);
     boxBody_4.velocity.set(0, 0, 0);
     boxBody_4.angularVelocity.set(0, 0, 0);
+  }
+
+  if(countdownImg){
+    // Mise à jour de la source de l'image en fonction du temps écoulé
+    if (courseElapsedTime > 5) {
+      countdownImg.src = "Image/decompte_0.png";
+      // Calculer une opacité dégressant de 1 à 0 pour courseElapsedTime allant de 5 à 6
+      let fade = 1 - (courseElapsedTime - 5);
+      courseElapsedTime += timeStep;
+      countdownImg.style.opacity = fade;
+      if (fade < 0){
+        // Optionnel : supprimer le compte à rebours du DOM une fois le départ effectif
+        if (countdownImg) {
+          countdownImg.parentNode.removeChild(countdownImg);
+          countdownImg = null;
+        }
+        fade = 0;
+      } 
+    } else if (courseElapsedTime > 4) {
+      countdownImg.src = "Image/decompte_1.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 3) {
+      countdownImg.src = "Image/decompte_2.png";
+      countdownImg.style.opacity = "0.7";
+    } else if (courseElapsedTime > 2) {
+      countdownImg.src = "Image/decompte_3.png";
+      countdownImg.style.opacity = "0.7";
+    }
   }
   
   // Synchronisation du mesh de la boîte avec son corps physique
@@ -3382,7 +3596,7 @@ function selection_travel(imageName) {
     transitionElapsed = 0;
     isTransitioning = true;
   }
-  else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc" || imageName === "vitesse") {
+  else if (imageName === "50cc" || imageName === "100cc" || imageName === "150cc" || imageName === "200cc" || imageName === "vitesse" || imageName ==="retour_tour_multi") {
     if(menu_name === "solo"){menu_name = "perso_solo"; nbOfPlayers = 1;}
     if(menu_name === "multi"){menu_name = "nb_multi";}
     console.log(imageName);
@@ -3393,7 +3607,7 @@ function selection_travel(imageName) {
     // Préparation de la transition : la caméra va vers (x, y)
     updatePlayerSelectionVisibility(nbOfPlayers);
     transitionStart.copy(camera_select.position);
-    transitionTarget.set(ratioW * 1, menu_name == "perso_solo" ? ratioH * 1 : ratioH * -1, camera_select.position.z);
+    transitionTarget.set(ratioW * 1, menu_name == "perso_solo" ? ratioH * 1 : imageName ==="retour_tour_multi" ? ratioH * 1 : ratioH * -1, camera_select.position.z);
     transitionElapsed = 0;
     isTransitioning = true;
   }
@@ -3406,6 +3620,10 @@ function selection_travel(imageName) {
       menu_name = "perso_solo";
       selection_travel("vitesse");
     }
+    if(menu_name == "tour_multi"){
+      menu_name = "nb_multi";
+      selection_travel("retour_tour_multi");
+    }
     if(menu_name == "choice_multi"){
       menu_name = "nb_multi";
       selection_travel("vitesse");
@@ -3413,7 +3631,12 @@ function selection_travel(imageName) {
   }
   else if(imageName === "ok_solo_kart"){
     console.log("ok_solo_kart");
-    menu_name = "tour_solo";
+    if(nbOfPlayers == 1){
+      menu_name = "tour_solo";
+    }
+    else{
+      menu_name = "tour_multi";
+    }
     transitionStart.copy(camera_select.position);
     transitionTarget.set(ratioW * 2, ratioH * 1, camera_select.position.z);
     transitionElapsed = 0;
@@ -3494,7 +3717,7 @@ function updatePlayerSelectionVisibility(nbOfPlayers) {
       for(let i = 0; i < 4; i ++){
         const label = obj.getObjectByName("selection_label" + i);
         if (label) {
-          label.visible = (obj.spec <= nbOfPlayers);
+          label.visible = (i <= nbOfPlayers-1);
         }
       }
     }
@@ -4113,6 +4336,7 @@ let pointerOffset = new THREE.Vector2(0, 0);
 
 function updateGamepadCursor(deltaTime) {
   if (gamepadIndex1 !== null) {
+    gamepadCursor.visible = true;
     const gamepad = navigator.getGamepads()[gamepadIndex1];
     if (gamepad && gamepad.axes.length >= 2) {
       const speed = 500; // Vitesse de déplacement du pointeur
@@ -4128,12 +4352,15 @@ function updateGamepadCursor(deltaTime) {
       pointerOffset.y = Math.max(-limitY, Math.min(limitY, pointerOffset.y));
     }
   }
+  else{
+    gamepadCursor.visible = false;
+  }
   
   // Positionner le pointeur : il suit la caméra en lui ajoutant l'offset
   gamepadCursor.position.x = camera_select.position.x + pointerOffset.x;
   gamepadCursor.position.y = camera_select.position.y + pointerOffset.y;
   // Placer le pointeur un peu devant la caméra pour éviter tout z-fighting (par exemple, 10 unités devant)
-  gamepadCursor.position.z = 0;
+  gamepadCursor.position.z = 50;
 }
 
 
@@ -4168,14 +4395,295 @@ function updateCursorClick() {
   }
 }
 
+function updateGamepadCursorHover() {
+  // On prend la position du gamepadCursor et on la projette en coordonnées normalisées (NDC)
+  const pointer = gamepadCursor.position.clone();
+  pointer.project(camera_select);
+  const pointer2D = new THREE.Vector2(pointer.x, pointer.y);
+
+  // Création du raycaster à partir de ces coordonnées NDC
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer2D, camera_select);
+
+  // On interroge la scène SELECT ; comme gamepadCursor fait partie de la scène,
+  // il sera souvent en première position dans les intersections
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
+
+  // Si au moins deux objets sont détectés, on prend le deuxième
+  if (intersects.length > 1) {
+    const topObj = intersects[1].object;
+    if (topObj.userData && topObj.userData.selection) {
+      // Si cet objet n'est pas encore en état de hover...
+      if (!topObj.userData.hovered) {
+        // Sauvegarder sa texture d'origine (si ce n'est déjà fait)
+        if (!topObj.userData.originalTexture) {
+          topObj.userData.originalTexture = topObj.material;
+        }
+        // Changer la texture vers celle de survol
+        topObj.material = topObj.userData.hoverMaterial;
+        topObj.material.needsUpdate = true;
+        // Marquer l'objet comme "hovered"
+        topObj.userData.hovered = true;
+      }
+    }
+  } else {
+    // Sinon, aucun objet en hover : on parcourt la scène pour réinitialiser la texture
+    scene_select.children.forEach(obj => {
+      if (obj.userData && obj.userData.hovered) {
+        if (obj.userData.originalTexture) {
+          obj.material = obj.userData.originalTexture;
+          obj.material.needsUpdate = true;
+        }
+        obj.userData.hovered = false;
+      }
+    });
+  }
+}
+
+// --- Fonction de mise à jour du hover pour les images de tours ---
+function updateGamepadCursorHoverTours() {
+  // Récupère la position du gamepadCursor en coordonnées normalisées (NDC) par rapport à camera_select
+  const pointer = gamepadCursor.position.clone();
+  pointer.project(camera_select);
+  const pointer2D = new THREE.Vector2(pointer.x, pointer.y);
+  
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer2D, camera_select);
+  
+  // Comme le gamepadCursor lui-même est dans la scène, on prend le deuxième objet trouvé
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
+  
+  if (intersects.length > 1) {
+    const topObj = intersects[1].object;
+    // Si c'est une image de tour (userData.select == "tour")
+    if (topObj.userData && (topObj.userData.name === "tour_1" || topObj.userData.name === "tour_2" || topObj.userData.name === "tour_3")) {
+      // Si l'objet n'est pas déjà en hover
+      
+      if (!topObj.userData.hovered) {
+        // Si besoin, sauvegarder la texture ou l'échelle d'origine (pour les réinitialiser)
+        if (!topObj.userData.originalScale) {
+          topObj.userData.originalScale = topObj.scale.clone();
+        }
+        topObj.userData.hovered = true;
+      }
+    }
+  } else {
+    // Si aucun objet de type tour n'est survolé, réinitialiser l'effet hover pour tous les objets
+    scene_select.children.forEach(obj => {
+      if (obj.userData && (obj.userData.name === "tour_1" || obj.userData.name === "tour_2" || obj.userData.name === "tour_3") && obj.userData.hovered) {
+        // Réinitialisation de l'échelle
+        if(obj.userData.originalScale) {
+          //obj.scale.copy(obj.userData.originalScale);
+        }
+        // Si vous aviez changé la texture, on pourrait la remettre à l'image d'origine (userData.image)
+        if (obj.userData.originalTexture) {
+          obj.material.map = obj.userData.originalTexture;
+          obj.material.needsUpdate = true;
+        }
+        obj.userData.hovered = false;
+      }
+    });
+  }
+
+
+  if (intersects.length > 1) {
+    var topObj = intersects[1].object;
+    for(let i = 0; i < 2; i++){
+      if (topObj.name === "perso") {
+        console.log(topObj.hovered);
+        // Si l'objet n'est pas déjà en hover
+        if (!topObj.hovered) {
+          topObj.hovered = true;
+        }
+        break;
+      }
+      if (topObj.parent != null) topObj = topObj.parent;
+    }    
+  } else {
+    // Si aucun objet de type tour n'est survolé, réinitialiser l'effet hover pour tous les objets
+    scene_select.children.forEach(obj => {
+      if (obj.name === "perso" && obj.hovered) {
+        obj.hovered = false;
+      }
+    });
+  }
+
+  
+
+  scene_select.children.forEach(obj => {
+    if(obj.userData.name === "tour_1" || obj.userData.name === "tour_2" || obj.userData.name === "tour_3"){
+      var targetScale = obj.userData.hovered ? 1.2 : 1.0;
+      // Lerp progressif vers l’échelle cible
+      obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
+      obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
+      obj.scale.z = THREE.MathUtils.lerp(obj.scale.z, targetScale, 0.1);
+    }
+    if (obj.name === "perso") {
+      if(obj.hovered) console.log(obj.spec);
+      var targetScale = obj.hovered ? 7 : 5;
+      if(obj.spec == 1){
+        var targetScale = obj.hovered ? 7 : 5;
+      }
+      if(obj.spec == 2){
+        var targetScale = obj.hovered ? 700 : 500;
+      } 
+      if(obj.spec == 3){
+        var targetScale = obj.hovered ? 700 : 500;
+      } 
+      if(obj.spec == 4){
+        var targetScale = obj.hovered ? 700 : 500;
+      } 
+      // Lerp progressif vers l’échelle cible
+      obj.scale.x = THREE.MathUtils.lerp(obj.scale.x, targetScale, 0.1);
+      obj.scale.y = THREE.MathUtils.lerp(obj.scale.y, targetScale, 0.1);
+      obj.scale.z = THREE.MathUtils.lerp(obj.scale.z, targetScale, 0.1);
+    }
+
+  });
+}
+
+// --- Fonction de clic via le gamepad sur les images de tours ---
+// Cette fonction s'inspire de votre code de clic pour la souris, en ignorant le premier élément (gamepadCursor)
+function gamepadCursorClickActionTours() {
+  const pointer = gamepadCursor.position.clone();
+  pointer.project(camera_select);
+  const pointer2D = new THREE.Vector2(pointer.x, pointer.y);
+  
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer2D, camera_select);
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
+
+  if (intersects.length > 1) {
+    const topObj = intersects[1].object;
+    // Vérifier que l'objet correspond à une image de tour
+    if (topObj.userData && (topObj.userData.name === "tour_1" || topObj.userData.name === "tour_2" || topObj.userData.name === "tour_3")) {
+      // Si un label est déjà attaché, le retirer ; sinon, le créer
+      const label = topObj.getObjectByName("selection_label");
+      if (label) {
+        topObj.remove(label);
+      } else {
+        // Si une image était déjà sélectionnée, retirer son label
+        if (selected_plan) {
+          const oldLabel = selected_plan.getObjectByName("selection_label");
+          if (oldLabel) selected_plan.remove(oldLabel);
+        }
+        // Mettre à jour la sélection
+        selected_plan = topObj;
+        const newLabel = createSelectionLabel();
+        newLabel.name = "selection_label";
+        // Positionner le label au-dessus de l'image (à ajuster selon vos besoins)
+        newLabel.scale.set(150,38,75)
+        newLabel.position.set(0, 120, 0);
+        console.log("label pour tour");
+        topObj.add(newLabel);
+      }
+    }
+  }
+}
+
+function gamepadCursorClickActionModels() {
+  const pointer = gamepadCursor.position.clone();
+  pointer.project(camera_select);
+  const pointer2D = new THREE.Vector2(pointer.x, pointer.y);
+  
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer2D, camera_select);
+  const intersects = raycaster.intersectObjects(scene_select.children, true);
+
+  if (intersects.length > 1) {
+    const topObj = intersects[1].object;
+    // Si l'objet est sélectionnable, on appelle la fonction selection_travel()
+    if (topObj.userData.selection) {
+      //selection_travel(topObj.userData.name);
+    }
+  }
+
+  let camIndex = thePlayerSelect;
+  if (intersects.length > 1) {
+    const topObj = intersects[1].object;
+    let perso = topObj;
+
+    while (perso && perso.name !== "perso") {
+      perso = perso.parent;
+    }
+
+    if (perso && perso.name === "perso") {
+      // Vérifier si ce perso est déjà sélectionné pour la caméra actuelle
+      if (selection_perso[camIndex] === perso) {
+        // Dé-sélection : on retire le perso pour cette caméra
+        selection_perso[camIndex] = null;
+        const label = perso.getObjectByName("selection_label"+camIndex);
+        if (label) perso.remove(label);
+      } else {
+        // S'il existe déjà une sélection pour cette caméra, on la dé-sélectionne d'abord
+        if (selection_perso[camIndex]) {
+          const oldPerso = selection_perso[camIndex];
+          const oldLabel = oldPerso.getObjectByName("selection_label"+camIndex);
+          if (oldLabel) oldPerso.remove(oldLabel);
+        }
+        // On ajoute le nouveau perso pour cette caméra
+        selection_perso[camIndex] = perso;
+        const label = createSelectionLabel(camIndex);
+        label.name = "selection_label"+camIndex;
+        if(perso.spec == 1){
+          label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+          customSkin[camIndex] = 1;
+        }
+        if(perso.spec == 2){
+          customSkin[camIndex] = 2;
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        } 
+        if(perso.spec == 3){
+          customSkin[camIndex] = 3;
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        } 
+        if(perso.spec == 4){
+          customSkin[camIndex] = 4;
+          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
+          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+        }
+        label.position.y = label.position.y * (camIndex == 0 ? 1 :(1 + 0.3*camIndex));
+        perso.add(label);
+      }
+    }
+  }
+}
+
+
+
+let clickGamepadCursor = false;
+
 
 function updateGamepadControls(deltaTime) {
   // Mettez à jour les contrôles pour chaque manette/player (player 1, 2, 3, 4)
   // ... Votre code de mise à jour pour updateBoxControl pour chaque joueur ...
-  updateGamepadCursor(deltaTime);
+  // Vérifier si le bouton "A" (index 0) est appuyé pour simuler un clic
+  const gp1 = navigator.getGamepads()[gamepadIndex1];
+  if (gp1){
+    updateGamepadCursor(deltaTime);
+
+    updateGamepadCursorHover();
+    updateGamepadCursorHoverTours();
+  }
+  else{
+    gamepadCursor.visible = false;
+  }
   
-  // Vérifiez si le bouton de clic est appuyé via la manette
-  updateCursorClick();
+
+  if (gp1 && gp1.buttons[0].pressed) {
+    if(!clickGamepadCursor){
+      // Vérifiez si le bouton de clic est appuyé via la manette
+      updateCursorClick();
+      gamepadCursorClickActionTours();
+      gamepadCursorClickActionModels();
+      clickGamepadCursor = true;
+    }
+  }
+  else{
+    clickGamepadCursor = false;
+  }
 }
 
 
