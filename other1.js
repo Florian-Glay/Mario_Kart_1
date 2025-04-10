@@ -1628,7 +1628,7 @@ function createOkButton() {
   // Au clic : supprimer le tableau de score et changer le statusWolrd en "select"
   okButton.addEventListener("click", () => {
     removeScoreTable();
-    statusWolrd = "select";
+    playFullScreenVideo();    // Lance la vidéo en plein écran
   });
 
   // Ajout du bouton au document
@@ -1651,9 +1651,43 @@ function EndCourse(){
   const gp1 = navigator.getGamepads()[gamepadIndex1];
   if (gp1 && gp1.buttons[0].pressed) {
     removeScoreTable();
-    statusWolrd = "select";
+    playFullScreenVideo();    // Lance la vidéo en plein écran
   }
 }
+
+function playFullScreenVideo() {
+  // Crée l'élément vidéo
+  const video = document.createElement('video');
+  // Spécifiez la source de votre vidéo
+  video.src = "Video/final.mp4"; // Remplacez par le chemin réel de votre vidéo
+  video.autoplay = true;
+  video.playsInline = true; // pour les mobiles
+  video.controls = false;   // aucun contrôle
+  video.loop = false;       // ne se répète pas
+  // Pour respecter les politiques d'autoplay du navigateur, éventuellement
+  // video.muted = true;
+  video.volume = 0.4;
+
+  // Style pour afficher la vidéo en plein écran
+  video.style.position = "fixed";
+  video.style.top = "0";
+  video.style.left = "0";
+  video.style.width = "100%";
+  video.style.height = "100%";
+  video.style.objectFit = "cover";
+  video.style.zIndex = "10000";  // Au-dessus de tout le reste
+
+  // Ajouter la vidéo dans le body
+  document.body.appendChild(video);
+
+  // Quand la vidéo se termine, supprimer l'élément et changer le statusWolrd
+  video.addEventListener("ended", () => {
+    statusWolrd = "select";
+    video.parentNode.removeChild(video);
+  });
+}
+
+
 
 // === Caméra à la 3e personne ===
 // La caméra suit la boîte contrôlée.
@@ -2323,7 +2357,7 @@ function gameRun_2(){
         countdownImg.id = "countdownImg";
         // Positionnement centré au milieu de l'écran
         countdownImg.style.position = "fixed";
-        countdownImg.style.top = "30%";
+        countdownImg.style.top = "40%";
         countdownImg.style.left = "50%";
         countdownImg.style.transform = "translate(-50%, -50%)";
         // La hauteur sera 50% de la hauteur de l'écran
@@ -2463,7 +2497,7 @@ function gameRun_3(){
         countdownImg.id = "countdownImg";
         // Positionnement centré au milieu de l'écran
         countdownImg.style.position = "fixed";
-        countdownImg.style.top = "30%";
+        countdownImg.style.top = "50%";
         countdownImg.style.left = "50%";
         countdownImg.style.transform = "translate(-50%, -50%)";
         // La hauteur sera 50% de la hauteur de l'écran
@@ -2612,7 +2646,7 @@ function gameRun_4(){
         countdownImg.id = "countdownImg";
         // Positionnement centré au milieu de l'écran
         countdownImg.style.position = "fixed";
-        countdownImg.style.top = "30%";
+        countdownImg.style.top = "50%";
         countdownImg.style.left = "50%";
         countdownImg.style.transform = "translate(-50%, -50%)";
         // La hauteur sera 50% de la hauteur de l'écran
@@ -4678,6 +4712,13 @@ function updateGamepadControls(deltaTime) {
       updateCursorClick();
       gamepadCursorClickActionTours();
       gamepadCursorClickActionModels();
+      clickGamepadCursor = true;
+    }
+  }
+  else if (gp1 && gp1.buttons[1].pressed) {
+    if(!clickGamepadCursor){
+      // Vérifiez si le bouton de clic est appuyé via la manette
+      selection_travel("retour");
       clickGamepadCursor = true;
     }
   }
