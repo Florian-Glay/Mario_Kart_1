@@ -323,13 +323,20 @@ function loadKartModel(modelPath, onLoaded) {
     (gltf) => {
       const model = gltf.scene;
       // Appliquer les transformations souhaitées
-      modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+      modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
       model.position.set(-2000, -20, -500);
       model.rotation.y = Math.PI;
       model.traverse((child) => {
         if (child.isMesh) {
           child.frustumCulled = false;
           const mat = child.material;
+          const oldMat = child.material;
+          let map = oldMat.map || null;
+          child.material = new THREE.MeshBasicMaterial({
+            map: map,
+            color: oldMat.color || 0xffffff,
+            side: THREE.DoubleSide,
+          });
           if (mat && mat.metalness !== undefined) {
             mat.roughness = 0.8;
             mat.metalness = 0.0;
@@ -392,7 +399,7 @@ loader.load(
   (gltf) => {
     kart_2 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_2.position.set(-1950, -500, 65);
     // Orientation initiale
@@ -460,7 +467,7 @@ loader.load(
   (gltf) => {
     kart_3 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_3.position.set(-1650, -500, 300);
     // Orientation initiale
@@ -530,7 +537,7 @@ loader.load(
   (gltf) => {
     kart_4 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_4.position.set(-1650, -500, 300);
     // Orientation initiale
@@ -3890,6 +3897,27 @@ function createAIVehicle(modelPath, startPos, scale) {
   loader.load(modelPath, (gltf) => {
     ai.model = gltf.scene;
     ai.model.scale.set(scale, scale, scale);
+
+    ai.model.traverse((child) => {
+      if (child.isMesh) {
+        child.frustumCulled = false;
+        const mat = child.material;
+        const oldMat = child.material;
+          let map = oldMat.map || null;
+          child.material = new THREE.MeshBasicMaterial({
+            map: map,
+            color: oldMat.color || 0xffffff,
+            side: THREE.DoubleSide,
+          });
+        if (mat && mat.metalness !== undefined) {
+          mat.roughness = 0.8;
+          mat.metalness = 0.0;
+          mat.envMapIntensity = 0.5;
+          mat.toneMapped = true;
+          mat.emissive.set(0x000000);
+        }
+      }
+    });
     // Appliquer l'offset et la rotation de correction au niveau du modèle (localement dans le groupe)
     ai.model.position.set(0, -4, 0); // décale vers le bas de 4 unités
     ai.model.rotation.y = Math.PI;    // fait pivoter de 180° autour de Y
@@ -4699,8 +4727,7 @@ function gamepadCursorClickActionModels() {
         } 
         if(perso.spec == 3){
           customSkin[camIndex] = 3;
-          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
-          label.scale.set(20, 5, 10); // adapte la taille à ta scène
+          label.position.set(0, 20, 0); // positionner le label au-dessus du perso
         } 
         if(perso.spec == 4){
           customSkin[camIndex] = 4;
