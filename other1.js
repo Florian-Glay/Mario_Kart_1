@@ -287,7 +287,13 @@ boxBody.fixedRotation = true;
 boxBody.updateMassProperties();
 world.addBody(boxBody);
 const kartModelMario = '3D_Model/mario_arma.glb'; // chemin initial
-const kartModelLink = '3D_Model/car_5.glb';    // nouveau chemin après 1 minute
+const kartModelLink = '3D_Model/car_5.glb';
+const kartModelDefaut = '3D_Model/voiture_1.glb';
+const kartModelRace = '3D_Model/voiture_2.glb';
+
+const availableKarts = [kartModelMario, kartModelLink, kartModelDefaut, kartModelRace];
+// Liste des modèles considérés comme "petits"
+const smallScaleModels = [kartModelMario, kartModelDefaut];
 
 function prepareModel(kartModelMode){
   let modelPath;
@@ -297,10 +303,10 @@ function prepareModel(kartModelMode){
     modelPath = kartModelLink; // chemin du nouveau modèle
   } 
   else if (kartModelMode === 3) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
+    modelPath = kartModelDefaut; // chemin du nouveau modèle
   } 
   else if (kartModelMode === 4) {
-    modelPath = kartModelLink; // chemin du nouveau modèle
+    modelPath = kartModelRace; // chemin du nouveau modèle
   } else {
     console.error("Mode de kart non reconnu :", kartModelMode);
     return;
@@ -317,7 +323,7 @@ function loadKartModel(modelPath, onLoaded) {
     (gltf) => {
       const model = gltf.scene;
       // Appliquer les transformations souhaitées
-      modelPath == kartModelMario ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+      modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
       model.position.set(-2000, -20, -500);
       model.rotation.y = Math.PI;
       model.traverse((child) => {
@@ -385,7 +391,8 @@ loader.load(
   '3D_Model/mario_arma.glb',
   (gltf) => {
     kart_2 = gltf.scene;
-    kart_2.scale.set(1, 1, 1);
+    // Appliquer les transformations souhaitées
+    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_2.position.set(-1950, -500, 65);
     // Orientation initiale
@@ -449,10 +456,11 @@ world.addBody(boxBody_3);
 // === Chargement du modèle de la voiture (kart) ===
 let kart_3;
 loader.load(
-  '3D_Model/mario_arma.glb',
+  '3D_Model/voiture_1.glb',
   (gltf) => {
     kart_3 = gltf.scene;
-    kart_3.scale.set(1, 1, 1);
+    // Appliquer les transformations souhaitées
+    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_3.position.set(-1650, -500, 300);
     // Orientation initiale
@@ -521,7 +529,8 @@ loader.load(
   '3D_Model/mario_arma.glb',
   (gltf) => {
     kart_4 = gltf.scene;
-    kart_4.scale.set(1, 1, 1);
+    // Appliquer les transformations souhaitées
+    modelPath == (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_4.position.set(-1650, -500, 300);
     // Orientation initiale
@@ -2038,7 +2047,7 @@ function moveCam(deltaTime) {
     }
   // Paramètres de sensibilité et de vitesse
   const sensitivity = 0.005;
-  const moveSpeed = 500;
+  const moveSpeed = 5000;
   
   // Calcul du centre de l'écran
   const centerX = window.innerWidth / 2;
@@ -2209,8 +2218,13 @@ function gameRun(){
     courseStartDelay = 5;
 
     for (let i = 0; i < 11; i++) {
-      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
-      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+      const randomModel = availableKarts[Math.floor(Math.random() * availableKarts.length)];
+      const position = { x: start_place[i].x, y: -22, z: start_place[i].z };
+      const scaleValue = smallScaleModels.includes(randomModel) ? 1 : 100;
+
+      aiVehicles.push(
+        createAIVehicle(randomModel, position, scaleValue)
+      );
     }
 
     courseState = "load";
@@ -2334,8 +2348,13 @@ function gameRun_2(){
     courseStartDelay = 5;
 
     for (let i = 0; i < 10; i++) {
-      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
-      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+      const randomModel = availableKarts[Math.floor(Math.random() * availableKarts.length)];
+      const position = { x: start_place[i].x, y: -22, z: start_place[i].z };
+      const scaleValue = smallScaleModels.includes(randomModel) ? 1 : 100;
+
+      aiVehicles.push(
+        createAIVehicle(randomModel, position, scaleValue)
+      );
     }
 
     courseState = "load";
@@ -2474,8 +2493,13 @@ function gameRun_3(){
     courseStartDelay = 5;
 
     for (let i = 0; i < 9; i++) {
-      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
-      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+      const randomModel = availableKarts[Math.floor(Math.random() * availableKarts.length)];
+      const position = { x: start_place[i].x, y: -22, z: start_place[i].z };
+      const scaleValue = smallScaleModels.includes(randomModel) ? 1 : 100;
+
+      aiVehicles.push(
+        createAIVehicle(randomModel, position, scaleValue)
+      );
     }
 
     courseState = "load";
@@ -2623,8 +2647,13 @@ function gameRun_4(){
     courseStartDelay = 5;
 
     for (let i = 0; i < 8; i++) {
-      // On suppose que start_place est un tableau d'objets avec des propriétés x et z
-      aiVehicles.push(createAIVehicle('3D_Model/mario_arma.glb', { x: start_place[i].x, y: -22, z: start_place[i].z }, 1));
+      const randomModel = availableKarts[Math.floor(Math.random() * availableKarts.length)];
+      const position = { x: start_place[i].x, y: -22, z: start_place[i].z };
+      const scaleValue = smallScaleModels.includes(randomModel) ? 1 : 100;
+
+      aiVehicles.push(
+        createAIVehicle(randomModel, position, scaleValue)
+      );
     }
 
     courseState = "load";
@@ -2960,7 +2989,7 @@ loader.load('3D_Model/car_5.glb', (gltf) => {
 
 
 let perso_3;
-loader.load('3D_Model/car_5.glb', (gltf) => {
+loader.load('3D_Model/voiture_1.glb', (gltf) => {
   perso_3 = gltf.scene;
   perso_3.name = "perso";
   perso_3.spec = 3;
@@ -3005,7 +3034,7 @@ loader.load('3D_Model/car_5.glb', (gltf) => {
 });
 
 let perso_4;
-loader.load('3D_Model/car_5.glb', (gltf) => {
+loader.load('3D_Model/voiture_2.glb', (gltf) => {
   perso_4 = gltf.scene;
   perso_4.name = "perso";
   perso_4.spec = 4;
@@ -3418,7 +3447,7 @@ function grossissmentPerso(){
         var targetScale = hoveredPersos.has(obj) ? 700 : 500;
       } 
       if(obj.spec == 3){
-        var targetScale = hoveredPersos.has(obj) ? 700 : 500;
+        var targetScale = hoveredPersos.has(obj) ? 7 : 5;
       } 
       if(obj.spec == 4){
         var targetScale = hoveredPersos.has(obj) ? 700 : 500;
@@ -3499,8 +3528,8 @@ function onMouseClick(event, camIndex) {
         } 
         if(perso.spec == 3){
           customSkin[camIndex] = 3;
-          label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
-          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+          label.position.set(0, 20, 0); // positionner le label au-dessus du perso
+          label.scale.set(20, 5, 10); // adapte la taille à ta scène
         } 
         if(perso.spec == 4){
           customSkin[camIndex] = 4;
@@ -4562,7 +4591,7 @@ function updateGamepadCursorHoverTours() {
         var targetScale = obj.hovered ? 700 : 500;
       } 
       if(obj.spec == 3){
-        var targetScale = obj.hovered ? 700 : 500;
+        var targetScale = obj.hovered ? 7 : 5;
       } 
       if(obj.spec == 4){
         var targetScale = obj.hovered ? 700 : 500;
@@ -4671,7 +4700,7 @@ function gamepadCursorClickActionModels() {
         if(perso.spec == 3){
           customSkin[camIndex] = 3;
           label.position.set(0, 0.2, 0); // positionner le label au-dessus du perso
-          label.scale.set(0.2, 0.05, 0.1); // adapte la taille à ta scène
+          label.scale.set(20, 5, 10); // adapte la taille à ta scène
         } 
         if(perso.spec == 4){
           customSkin[camIndex] = 4;
