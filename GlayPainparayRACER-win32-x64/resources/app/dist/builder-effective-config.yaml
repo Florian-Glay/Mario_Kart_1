@@ -1,0 +1,8 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.votrenom.monjeu
+win:
+  target: nsis
+files: []
+electronVersion: 35.1.5
