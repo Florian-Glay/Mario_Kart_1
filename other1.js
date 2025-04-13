@@ -323,7 +323,7 @@ function loadKartModel(modelPath, onLoaded) {
     (gltf) => {
       const model = gltf.scene;
       // Appliquer les transformations souhaitées
-      modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
+      (modelPath == kartModelMario || modelPath == kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
       model.position.set(-2000, -20, -500);
       model.rotation.y = Math.PI;
       model.traverse((child) => {
@@ -399,7 +399,6 @@ loader.load(
   (gltf) => {
     kart_2 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_2.position.set(-1950, -500, 65);
     // Orientation initiale
@@ -467,7 +466,6 @@ loader.load(
   (gltf) => {
     kart_3 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_3.position.set(-1650, -500, 300);
     // Orientation initiale
@@ -537,7 +535,6 @@ loader.load(
   (gltf) => {
     kart_4 = gltf.scene;
     // Appliquer les transformations souhaitées
-    modelPath = (kartModelMario || kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
     // Position initiale (sera remplacée dans l'animation)
     kart_4.position.set(-1650, -500, 300);
     // Orientation initiale
