@@ -317,41 +317,67 @@ function prepareModel(kartModelMode){
 // === Chargement du modèle de la voiture (kart) ===
 let kart;//,mixer;
 // Fonction générique de chargement d'un modèle de kart
-function loadKartModel(modelPath, onLoaded) {
-  loader.load(
-    modelPath,
-    (gltf) => {
-      const model = gltf.scene;
-      // Appliquer les transformations souhaitées
-      (modelPath == kartModelMario || modelPath == kartModelDefaut) ? model.scale.set(1, 1, 1) : model.scale.set(100, 100, 100);
-      model.position.set(-2000, -20, -500);
-      model.rotation.y = Math.PI;
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.frustumCulled = false;
-          const mat = child.material;
-          const oldMat = child.material;
-          let map = oldMat.map || null;
-          child.material = new THREE.MeshBasicMaterial({
-            map: map,
-            color: oldMat.color || 0xffffff,
-            side: THREE.DoubleSide,
-          });
-          if (mat && mat.metalness !== undefined) {
-            mat.roughness = 0.8;
-            mat.metalness = 0.0;
-            mat.envMapIntensity = 0.5;
-            mat.toneMapped = true;
-            mat.emissive.set(0x000000);
-          }
-        }
-      });
-      onLoaded(model);
-    },
-    undefined,
-    console.error
-  );
+
+const modelCache = {};
+
+function loadModel(modelPath, onLoaded) {
+  if (modelCache[modelPath]) {
+    // Le modèle a déjà été chargé, on retourne un clone
+    onLoaded(modelCache[modelPath].clone());
+  } else {
+    loader.load(
+      modelPath,
+      (gltf) => {
+        modelCache[modelPath] = gltf.scene;
+        onLoaded(gltf.scene.clone());
+      },
+      undefined,
+      console.error
+    );
+  }
 }
+
+
+function loadKartModel(modelPath, onLoaded) {
+  // Utiliser le loader avec cache pour charger le modèle
+  loadModel(modelPath, (model) => {
+    // Appliquer la transformation en fonction du type de kart
+    if (modelPath === kartModelMario || modelPath === kartModelDefaut) {
+      model.scale.set(1, 1, 1);
+    } else {
+      model.scale.set(100, 100, 100);
+    }
+    model.position.set(-2000, -20, -500);
+    model.rotation.y = Math.PI;
+    
+    // Traverser le modèle pour configurer les matériaux et d'autres propriétés
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.frustumCulled = false;
+        const oldMat = child.material;
+        const map = (oldMat && oldMat.map) || null;
+        // Appliquer un nouveau matériau en se basant sur l'ancien
+        child.material = new THREE.MeshBasicMaterial({
+          map: map,
+          color: oldMat ? oldMat.color || 0xffffff : 0xffffff,
+          side: THREE.DoubleSide,
+        });
+        // Si l'ancien matériau possède la propriété metalness, ajuster les paramètres
+        if (oldMat && oldMat.metalness !== undefined) {
+          oldMat.roughness = 0.8;
+          oldMat.metalness = 0.0;
+          oldMat.envMapIntensity = 0.5;
+          oldMat.toneMapped = true;
+          oldMat.emissive.set(0x000000);
+        }
+      }
+    });
+    
+    // Retourne le modèle transformé
+    onLoaded(model);
+  });
+}
+
 
 function updateKartModel(kartModelMode) {
   let modelPath;
@@ -1767,77 +1793,169 @@ function updateCamera(boxCarMesh, camera, rot_speed, player = 1) {
 
 
 
+// Pool de particules drift pour l'IA
+let driftParticlePool = [];
+let activeDriftParticles = [];
+const MAX_DRIFT_PARTICLES = 200; // Nombre maximum de particules à conserver dans le pool
 
-let driftParticles = [];
+// Fonction pour récupérer une particule depuis le pool
+function getDriftParticle(particleColor) {
+  let particle;
+  if (driftParticlePool.length > 0) {
+    // Réutilise une particule existante
+    particle = driftParticlePool.pop();
+    // Mettre à jour la couleur et réinitialiser l'opacité
+    particle.material.color.setHex(particleColor);
+    particle.material.opacity = 1;
+    particle.userData.lifetime = 0;
+  } else {
+    // Si le pool est vide, en créer une nouvelle
+    const geometry = new THREE.SphereGeometry(0.3, 8, 8);
+    const material = new THREE.MeshBasicMaterial({
+      color: particleColor,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    particle = new THREE.Mesh(geometry, material);
+    particle.userData = { lifetime: 0 };
+  }
+  return particle;
+}
+
+// Fonction pour remettre une particule dans le pool
+function releaseDriftParticle(particle) {
+  // Réinitialiser les paramètres éventuels
+  particle.material.opacity = 1;
+  particle.userData.lifetime = 0;
+  // Optionnel : repositionner hors de la vue
+  particle.position.set(0, -1000, 0);
+  // Réintégrer dans le pool si on n'a pas dépassé la capacité max
+  if (driftParticlePool.length < MAX_DRIFT_PARTICLES) {
+    driftParticlePool.push(particle);
+  } else {
+    // Si le pool est plein, libérer les ressources
+    particle.geometry.dispose();
+    particle.material.dispose();
+  }
+}
+
 
 function spawnDriftParticle(carMesh, direction, player) {
-  // Calculer une position d'apparition : légèrement derrière la voiture,
-  // avec un décalage réduit pour concentrer la traînée.
+  // Calculer la position d'apparition comme avant
   const offset = new THREE.Vector3();
   if (direction === 'left') {
-    offset.set(1, 0, -3); // décalage réduit pour un effet serré
+    offset.set(1, 0, -3);
   } else {
     offset.set(-1, 0, -3);
   }
-  // Appliquer la rotation de la voiture à l'offset
   offset.applyQuaternion(carMesh.quaternion);
-  // Ajouter une petite variation aléatoire pour densifier la traînée
   offset.x += (Math.random() - 0.5) * 2;
   offset.y += (Math.random() - 0.5) * 2;
   offset.z += (Math.random() - 0.5) * 2;
   
   const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
-  // Déterminer la couleur : orange en boost, bleu sinon
   const particleColor = (player == 1 ? isBoostActive : player == 2 ? isBoostActive_2 : player == 3 ? isBoostActive_3 : isBoostActive_4) ? 0xff8800 : 0x00aaff;
   
-  // Créer une petite sphère bleue avec un effet luminescent
-  const geometry = new THREE.SphereGeometry(0.3, 8, 8); // particule plus petite
-  const material = new THREE.MeshBasicMaterial({
-    color: particleColor, // bleu lumineux
-    transparent: true,
-    opacity: 1,
-    blending: THREE.AdditiveBlending, // pour un effet lumineux
-    depthWrite: false, // évite d'écrire dans le buffer de profondeur
-  });
-  const particle = new THREE.Mesh(geometry, material);
+  // Récupérer une particule depuis le pool
+  const particle = getDriftParticle(particleColor);
   particle.position.copy(spawnPos);
-  particle.userData = { lifetime: 0 }; // pour gérer la durée de vie
+  // Mettre à jour la couleur (si votre matériel doit varier d'un particle à l'autre)
+  particle.material.color.setHex(particleColor);
+  // Assurez-vous que l'opacité est bien initialisée à 1
+  particle.material.opacity = 1;
+  
+  // Stocker la durée de vie (réinitialiser userData.lifetime à 0)
+  particle.userData.lifetime = 0;
+  
   scene.add(particle);
-  driftParticles.push(particle);
+  activeDriftParticles.push(particle);
 }
 
-function updateDriftParticles(dlt) {
-  const deltaTime = dlt;
-  // À intégrer dans votre fonction animate()
-  for (let i = driftParticles.length - 1; i >= 0; i--) {
-    const p = driftParticles[i];
+// Fonction de mise à jour des particules drift (à appeler à chaque frame, par exemple dans votre boucle d'animation)
+function updateDriftParticles(deltaTime) {
+  for (let i = activeDriftParticles.length - 1; i >= 0; i--) {
+    const p = activeDriftParticles[i];
     p.userData.lifetime += deltaTime;
-    // Diminuer l'opacité sur 1 seconde
-    p.material.opacity = Math.max(0, 1 - p.userData.lifetime);
+    // Faire diminuer l'opacité au fil du temps (ajustez le multiplicateur selon l'effet souhaité)
+    p.material.opacity = Math.max(0, 1 - p.userData.lifetime * 5);
+    // Quand la particule a dépassé sa durée de vie (ici 0.2 seconde), la retirer de la scène
     if (p.userData.lifetime > 0.2) {
       scene.remove(p);
-      driftParticles.splice(i, 1);
+      activeDriftParticles.splice(i, 1);
+      // La remettre ensuite dans le pool pour réutilisation
+      releaseDriftParticle(p);
     }
   }
 }
 
-function spawnBoostParticles(carMesh) {
-  // Exemple simple : créer une particule rouge derrière la voiture
+
+// Pool de particules de boost
+let boostParticlePool = [];
+let activeBoostParticles = [];
+
+// Nombre maximum de particules dans le pool
+const MAX_BOOST_PARTICLES = 100;
+
+function getBoostParticle() {
+  // Si une particule est disponible dans le pool, on la réutilise
+  if (boostParticlePool.length > 0) {
+    return boostParticlePool.pop();
+  }
+  // Sinon, on en crée une nouvelle
   const geometry = new THREE.SphereGeometry(1, 8, 8);
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8 });
-  const particle = new THREE.Mesh(geometry, material);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.8,
+    // Vous pouvez ajouter des options de blending si besoin
+  });
+  return new THREE.Mesh(geometry, material);
+}
+
+function releaseBoostParticle(particle) {
+  // Réinitialiser la particule si nécessaire (ici, remettre son opacité par défaut)
+  particle.material.opacity = 0.8;
+  // Optionnel : repositionner la particule hors de la vue
+  particle.position.set(0, -1000, 0);
+  // La réintégrer dans le pool si nous n'avons pas dépassé le maximum
+  if (boostParticlePool.length < MAX_BOOST_PARTICLES) {
+    boostParticlePool.push(particle);
+  } else {
+    // Sinon, on libère ses ressources si on ne souhaite pas la conserver
+    particle.geometry.dispose();
+    particle.material.dispose();
+  }
+}
+
+function spawnBoostParticles(carMesh) {
+  // Récupérer une particule depuis le pool
+  const particle = getBoostParticle();
   
-  // Positionner la particule derrière la voiture : par exemple, 5 unités derrière, légèrement aléatoire
-  const offset = new THREE.Vector3(Math.random() * 2 >= 1 ? -5 : 5, Math.random() * 6 - 1, Math.random() * -4 - 15);
+  // Calculer une position d'apparition avec un peu d'aléatoire
+  const offset = new THREE.Vector3(
+    Math.random() >= 0.5 ? -5 : 5,
+    Math.random() * 6 - 1,
+    Math.random() * -4 - 15
+  );
   offset.applyQuaternion(carMesh.quaternion);
   particle.position.copy(carMesh.position).add(offset);
   
-  // Ajouter la particule à la scène (ou à un groupe de particules)
+  // Ajouter la particule à la scène et au tableau des particules actives
   scene.add(particle);
+  activeBoostParticles.push(particle);
   
-  // Optionnel : supprimer la particule après un court délai
+  // Après 200 ms, retirer la particule de la scène et la remettre dans le pool
   setTimeout(() => {
     scene.remove(particle);
+    // Enlever de la liste des particules actives
+    const index = activeBoostParticles.indexOf(particle);
+    if (index !== -1) {
+      activeBoostParticles.splice(index, 1);
+    }
+    // La remettre dans le pool pour réutilisation future
+    releaseBoostParticle(particle);
   }, 200);
 }
 
@@ -3802,21 +3920,47 @@ function theUpdateGame(deltaTime){
 //
 // =============================================================================
 
-// Supprime complètement un véhicule IA
+// Fonction utilitaire pour disposer d'un objet Three.js en profondeur
+function disposeThreeObject(obj) {
+  obj.traverse(child => {
+    if (child.isMesh) {
+      // Dispose la géométrie
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      // Dispose le ou les matériaux
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(mat => {
+            if (mat.map) mat.map.dispose();
+            mat.dispose();
+          });
+        } else {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
+        }
+      }
+    }
+  });
+}
+
+// Supprime complètement un véhicule IA en s'assurant de libérer les ressources Three.js
 function removeAIVehicle(ai) {
-  // Retirer le corps physique du monde, s'il existe
+  // Retirer le corps physique du monde, et le libérer si besoin
   if (ai.body) {
     world.removeBody(ai.body);
     ai.body = null;
   }
-  // Retirer le mesh de debug de la scène
+  // Retirer et disposer du mesh de debug (s'il existe)
   if (ai.mesh) {
     scene.remove(ai.mesh);
+    disposeThreeObject(ai.mesh);
     ai.mesh = null;
   }
-  // Retirer le groupe visuel (contenant le modèle) de la scène
+  // Retirer et disposer du groupe visuel (contenant le modèle)
   if (ai.visualGroup) {
     scene.remove(ai.visualGroup);
+    disposeThreeObject(ai.visualGroup);
     ai.visualGroup = null;
   }
 }
@@ -3829,38 +3973,33 @@ function removeAllAIVehicles() {
   aiVehicles.length = 0; // Vide le tableau
 }
 
-
-// Fonction modifiée pour spawn de particules pour l'IA (on accepte un paramètre particleColor)
+// Fonction de spawn pour les particules drift pour l'IA
 function spawnDriftParticleIa(carMesh, direction, particleColor) {
-  // Calcul d'un offset de base
+  // Calcul de l'offset en fonction de la direction (gauche/droite)
   const offset = new THREE.Vector3();
   if (direction === 'left') {
     offset.set(1, 0, -3);
-  } else { // direction "right"
+  } else { // pour "right"
     offset.set(-1, 0, -3);
   }
-  // Appliquer la rotation du kart à l'offset
+  // Appliquer la rotation du véhicule à l'offset
   offset.applyQuaternion(carMesh.quaternion);
-  // Ajouter une variation aléatoire pour plus d'effet
+  // Ajouter une variation aléatoire pour une distribution plus naturelle
   offset.x += (Math.random() - 0.5) * 2;
   offset.y += (Math.random() - 0.5) * 2;
   offset.z += (Math.random() - 0.5) * 2;
   
   const spawnPos = new THREE.Vector3().copy(carMesh.position).add(offset);
-  const geometry = new THREE.SphereGeometry(0.3, 8, 8);
-  const material = new THREE.MeshBasicMaterial({
-    color: particleColor, 
-    transparent: true,
-    opacity: 1,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const particle = new THREE.Mesh(geometry, material);
+  
+  // Récupérer une particule depuis le pool en lui assignant la couleur souhaitée
+  const particle = getDriftParticle(particleColor);
   particle.position.copy(spawnPos);
-  particle.userData = { lifetime: 0 };
+  
+  // Ajouter la particule à la scène et à la liste active
   scene.add(particle);
-  driftParticles.push(particle);
+  activeDriftParticles.push(particle);
 }
+
 
 // Création de la voiture IA
 function createAIVehicle(modelPath, startPos, scale) {

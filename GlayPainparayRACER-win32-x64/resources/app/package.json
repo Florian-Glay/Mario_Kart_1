@@ -1,15 +1,16 @@
 {
-  "name": "a",
+  "name": "glaypainparayracer",
   "version": "0.0.0",
   "build": {
     "appId": "com.votrenom.monjeu",
     "win": {
+      "icon": "./Image/myicon.ico",
       "target": "nsis"
     }
   },
   "scripts": {
     "dev": "vite",
-    "build": "electron-builder",
+    "build": "vite build",
     "serve": "vite preview",
     "start": "electron ."
   },
