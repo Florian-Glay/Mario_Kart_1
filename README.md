@@ -14,18 +14,18 @@ Il est possible de connecté 1 à 4 manettes de jeu par bluetooth afin de contro
 
 ## CONSIGNES
 
-1 - installer visual studio code
+1 - Installer visual studio code
 
-2 - lier avec git
+2 - Lier avec git
 
-3 - installer node js
+3 - Installer node js
 
-4 - ouvrir le panneau (Ctrl+J) et aller dans TERMINAL
+4 - Ouvrir le panneau (Ctrl+J) et aller dans TERMINAL
 
-5 - sélectionner la flèche du "+" à côté de powershell et ouvrir un Command Prompt
+5 - Sélectionner la flèche du "+" à côté de powershell et ouvrir un Command Prompt
 
-6 - taper (pour vérifier si c'est bien installé) : npm install
+6 - Taper (pour vérifier si c'est bien installé) : npm install
 
-7 - taper à la suite : npm run dev
+7 - Taper ensuite : npm run dev
 
-8 -  copier coller le lien qui résulte de cette commande dans votre navigateur. Bien souvent cela sera http://localhost:3000/ 
+8 -  Copier coller le lien qui résulte de cette commande dans votre navigateur. Bien souvent cela sera http://localhost:3000/ 
