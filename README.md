@@ -1,10 +1,31 @@
-## Usage
+# MARIO KART GAME LIKE par GLAY et PAINPARAY
+
+Voici un Git où se trouve tout l'environnement de développement. Si vous voulez seulement tester le jeu, veuillez vous dirigez ici : https://github.com/Florian-Glay/MarioKart_GAME
+
+## Informations :
+
+Voici un jeu vidéo disponible sur navigateur et qui n'a pas de but commercial.
+
+Le jeu est un Mario Kart qui permet de jouer entre 1 et 4 joueur sur clavier avec "ZQSD", "OKLM", "GVBN", "flèches directionnelles"
+
+Le Menu principal du jeu est déjà très bien indiqué sur comment faire une course; on choisi le nombre de joueur puis la vitesse des kart puis le un kart parmi 4 model. Enfin on séléctionne le nombre de tour de piste il est nécessaire pour finir la course. Une fois que tout les joueurs ont terminé la course, un tableau de score s'affiche et un bouton "OK" apparait pour ramener ay Menu principal du Jeu.
+
+Il est possible de connecté 1 à 4 manettes de jeu par bluetooth afin de controller les kart. Un des boutons du menu principal permet de voir combien de manettes sont connectées au jeu. La première manette connectée peut controller un curseur afin de sélectionner les bouton désirés.
+
+## CONSIGNES
 
 1 - installer visual studio code
+
 2 - lier avec git
+
 3 - installer node js
+
 4 - ouvrir le panneau (Ctrl+J) et aller dans TERMINAL
+
 5 - sélectionner la flèche du "+" à côté de powershell et ouvrir un Command Prompt
+
 6 - taper (pour vérifier si c'est bien installé) : npm install
+
 7 - taper à la suite : npm run dev
+
 8 -  copier coller le lien qui résulte de cette commande dans votre navigateur. Bien souvent cela sera http://localhost:3000/ 
