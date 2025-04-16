@@ -31,3 +31,6 @@ UN DERNIER POINT INFORMATIF : Il y a des IAs ;) Les courses sont de vrai courses
 7 - Taper ensuite : npm run dev
 
 8 -  Copier coller le lien qui résulte de cette commande dans votre navigateur. Bien souvent cela sera http://localhost:3000/ 
+
+
+### Groupe : GLAY Florian et PAINPARAY Esteban
