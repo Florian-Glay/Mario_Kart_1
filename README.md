@@ -6,7 +6,7 @@ Voici un Git où se trouve tout l'environnement de développement. Si vous voule
 
 Voici un jeu vidéo disponible sur navigateur et qui n'a pas de but commercial.
 
-Le jeu est un Mario Kart qui permet de jouer entre 1 et 4 joueur sur clavier avec "ZQSD", "OKLM", "GVBN", "flèches directionnelles". On peut faire des dérapages sur le circuit en faisant un double appuie sur l'une des touches pour tourner.
+Le jeu est un Mario Kart qui permet de jouer entre 1 et 4 joueurs sur clavier avec "ZQSD", "OKLM", "GVBN", "flèches directionnelles". On peut faire des dérapages sur le circuit en faisant un double appuie sur l'une des touches pour tourner.
 
 Le Menu principal du jeu est déjà très bien indiqué sur comment faire une course; on choisi le nombre de joueur puis la vitesse des kart puis le un kart parmi 4 model. Enfin on séléctionne le nombre de tour de piste il est nécessaire pour finir la course. Une fois que tout les joueurs ont terminé la course, un tableau de score s'affiche et un bouton "OK" apparait pour ramener ay Menu principal du Jeu.
 
