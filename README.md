@@ -32,5 +32,8 @@ UN DERNIER POINT INFORMATIF : Il y a des IAs ;) Les courses sont de vrai courses
 
 8 -  Copier coller le lien qui résulte de cette commande dans votre navigateur. Bien souvent cela sera http://localhost:3000/ 
 
+## IMPORTANT LORS DU TELECHARGEMENT
+
+Soit vous prenez le lien Git pour le mettre dans le VS Code soit vous téléchargez le zip du Git. Dans ce second cas, il faut aussi télécharger à part le fichier .exe qui fait 190 Mo et qui ne peut être compressé en fichier zip si l'on télécharge le zip du Git
 
 ### Groupe : GLAY Florian et PAINPARAY Esteban
